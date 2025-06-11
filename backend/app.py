@@ -3,20 +3,18 @@ from flask_cors import CORS
 import io
 import os
 
+from problem_generator.operations import generate_arithmetic_problems
+from pdf_generator.main import create_pdf_worksheet
+
 app = Flask(__name__)
 CORS(app)
 
 @app.route('/')
 def home():
-    """A simple route to check if the backend is running."""
     return "Worksheet Generator Backend is Running!"
 
 @app.route('/generate-worksheet', methods=['POST'])
 def generate_worksheet():
-    """
-    Handles the request to generate a worksheet.
-    Expects JSON data with subject, topic, pageCount, includeAnswerKey, and modifiers.
-    """
     data = request.json
     subject = data.get('subject')
     topic = data.get('topic')
@@ -26,24 +24,29 @@ def generate_worksheet():
 
     app.logger.info(f"Received request for: Subject={subject}, Topic={topic}, Pages={page_count}, AnswerKey={include_answer_key}, Modifiers={modifiers}")
 
-    try:
-        from reportlab.pdfgen import canvas
-        buffer = io.BytesIO()
-        p = canvas.Canvas(buffer)
-        p.drawString(100, 750, f"Worksheet: {subject} - {topic}")
-        p.drawString(100, 730, f"Page Count: {page_count}")
-        if include_answer_key:
-            p.drawString(100, 710, "Answer Key Included")
-        p.drawString(100, 690, f"Modifiers: {modifiers}")
-        p.drawString(100, 650, "This is a placeholder worksheet!")
-        p.showPage()
-        p.save()
-        buffer.seek(0)
+    num_problems_per_page = 30
+    total_problems = page_count * num_problems_per_page
 
-        return send_file(buffer, download_name='worksheet.pdf', mimetype='application/pdf')
+    problems_objects = []
+
+    if subject == 'Arithmetic':
+        problems_objects = generate_arithmetic_problems(topic, total_problems, modifiers)
+
+    problems_data_for_pdf = [p.to_dict() for p in problems_objects]
+
+    try:
+        pdf_buffer = create_pdf_worksheet(
+            problems_data_for_pdf,
+            include_answer_key,
+            subject,
+            topic,
+            num_problems_per_page
+        )
+
+        return send_file(pdf_buffer, download_name='worksheet.pdf', mimetype='application/pdf')
 
     except Exception as e:
-        app.logger.error(f"Error generating worksheet: {e}")
+        app.logger.error(f"Error generating worksheet: {e}", exc_info=True) # exc_info=True adds traceback
         return jsonify({"error": "Failed to generate worksheet", "details": str(e)}), 500
 
 if __name__ == '__main__':
