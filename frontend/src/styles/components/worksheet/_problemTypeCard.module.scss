@@ -5,11 +5,13 @@
   @include card-styles($padding: $spacing-lg, $shadow: $box-shadow-sm);
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
-  text-align: center; // Center text within the card
+  text-align: center;
   display: flex;
   flex-direction: column;
-  justify-content: space-between; // Push title to top, description to middle, button to bottom
-  min-height: 180px; // Ensure consistent height for cards
+  justify-content: space-between;
+  height: 200px;
+  width: 200px;
+  background-color: $color-main-100;
 
   &:hover {
     transform: translateY(-5px);
@@ -18,21 +20,17 @@
 }
 
 .title {
-  font-size: $font-size-lg;
-  color: $color-primary;
-  margin-top: 0; // Reset default heading margin
-  margin-bottom: $spacing-xs;
+  font-size: $font-size-h3;
+  color: $color-main-600;
 }
 
 .description {
   font-size: $font-size-sm;
-  color: $color-text-light;
-  flex-grow: 1; // Allow description to take up available space
-  margin-bottom: $spacing-sm;
+  color: $color-main-500;
+  flex-grow: 1;
 }
 
 .selectButton {
-  @include button-styles($bg-color: $color-accent, $text-color: $color-white);
-  width: 100%; // Make button full width of card
-  margin-top: $spacing-sm;
+  @include button-styles($bg-color: $color-main-100, $text-color: $color-main-100);
+  width: 100%;
 }

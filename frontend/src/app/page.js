@@ -56,9 +56,10 @@ export default function HomePage() {
 
         <>
           {/* Backend Status Display */}
-          {statusLoading && <p>Backend Status: Connecting...</p>}
+          
+          {/*{statusLoading && <p>Backend Status: Connecting...</p>}
           {statusError && <p style={{ color: 'red' }}>Backend Status Error: {statusError}</p>}
-          {!statusLoading && !statusError && <p>Backend Status: {statusMessage}</p>}
+          {!statusLoading && !statusError && <p>Backend Status: {statusMessage}</p>}*/}
 
           {/* Curriculum Grid */}
           <div className={styles.curriculumGrid}>

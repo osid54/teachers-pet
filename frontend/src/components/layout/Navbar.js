@@ -9,21 +9,19 @@ export default function Navbar() {
         <header className={styles.navbar}>
             <div className={styles.container}>
                 <div className={styles.logoSection}>
+                    <Link href="/" className={styles.logoImageLink}>
+                        <Image
+                            src="/favicon.ico"
+                            alt="Teacher's Pet Logo"
+                            width={40}
+                            height={40}
+                            className={styles.logoImage}
+                        />
+                    </Link>
+                    
                     <Link href="/" className={styles.logoText}>
                         Teacher's Pet
                     </Link>
-
-                    {/*
-          <Link href="/" className={styles.logoImageLink}>
-            <Image
-              src="/teachers-pet-logo.png" // Path to your logo in public/
-              alt="Teacher's Pet Logo"
-              width={40} // Adjust width as needed
-              height={40} // Adjust height as needed
-              className={styles.logoImage}
-            />
-          </Link>
-          */}
                 </div>
 
                 <nav className={styles.navLinks}>
@@ -43,12 +41,11 @@ export default function Navbar() {
                                 Contact
                             </Link>
                         </li>
-                        {/* Future: User Account Link */}
-                        {/* <li>
-              <Link href="/account" className={styles.navItem}>
-                Account
-              </Link>
-            </li> */}
+                        <li>
+                            <Link href="/account" className={styles.navItem}>
+                                Account
+                            </Link>
+                        </li>
                     </ul>
                 </nav>
             </div>
