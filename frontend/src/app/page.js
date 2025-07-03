@@ -28,8 +28,8 @@ function HomePage() {
     const worksheetData = {
       subject: 'Arithmetic',
       topic: 'Addition',
-      pageCount: 1,
-      includeAnswerKey: true,
+      page_count: 1,
+      include_answer_key: true,
       modifiers: {
         maxNumber: 10,
         allowNegatives: false,
@@ -59,7 +59,7 @@ function HomePage() {
   return (
     <div className="home-page" style={{ padding: '20px', fontFamily: 'sans-serif' }}>
       <h1>Worksheet Generator</h1>
-      <p>Backend Status: {backendMessage}</p>
+      <p>Backend Status: {backendMessage.message}</p>
 
       <button
         onClick={handleGenerateWorksheet}
