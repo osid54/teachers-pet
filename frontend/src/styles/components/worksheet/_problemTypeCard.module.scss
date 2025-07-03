@@ -1,0 +1,38 @@
+@import '@/styles/variables';
+@import '@/styles/mixins';
+
+.card {
+  @include card-styles($padding: $spacing-lg, $shadow: $box-shadow-sm);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  text-align: center; // Center text within the card
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; // Push title to top, description to middle, button to bottom
+  min-height: 180px; // Ensure consistent height for cards
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: $box-shadow-md;
+  }
+}
+
+.title {
+  font-size: $font-size-lg;
+  color: $color-primary;
+  margin-top: 0; // Reset default heading margin
+  margin-bottom: $spacing-xs;
+}
+
+.description {
+  font-size: $font-size-sm;
+  color: $color-text-light;
+  flex-grow: 1; // Allow description to take up available space
+  margin-bottom: $spacing-sm;
+}
+
+.selectButton {
+  @include button-styles($bg-color: $color-accent, $text-color: $color-white);
+  width: 100%; // Make button full width of card
+  margin-top: $spacing-sm;
+}

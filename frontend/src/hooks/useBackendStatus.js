@@ -9,32 +9,19 @@ export function useBackendStatus() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    let isMounted = true;
-
     const getStatus = async () => {
       try {
         const data = await fetchBackendStatus();
-        if (isMounted) {
-          setStatusMessage(data.message);
-        }
+        setStatusMessage(data.message);
       } catch (err) {
-        if (isMounted) {
-          setError(err.message);
-          setStatusMessage('Failed to connect.');
-        }
+        setError(err.message);
+        setStatusMessage('Failed to connect.');
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     };
-
     getStatus();
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
-
+  
   return { statusMessage, isLoading, error };
 }

@@ -29,7 +29,7 @@ app.add_middleware(
 
 class WorksheetRequest(BaseModel):
     subject: str = Field(..., description="The subject of the worksheet (e.g., 'Arithmetic').")
-    topic: str = Field(..., description="The specific topic within the subject (e.g., 'Addition').")
+    topic: list = Field(..., description="The specific topic within the subject (e.g., 'Addition').")
     page_count: int = Field(..., gt=0, description="Number of pages for the worksheet.")
     include_answer_key: bool = Field(False, description="Whether to include an answer key.")
     modifiers: dict = Field({}, description="Dictionary of specific modifiers for problem generation.")

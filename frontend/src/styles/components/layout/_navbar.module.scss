@@ -1,0 +1,72 @@
+// frontend/src/components/layout/Navbar.module.scss
+@import '@/styles/variables'; // Import your global variables
+@import '@/styles/mixins';   // Import your global mixins
+
+.navbar {
+  background-color: $color-primary; // Use your primary color
+  padding: $spacing-md 0; // Vertical padding, no horizontal padding here
+  box-shadow: $box-shadow-md; // Add a subtle shadow
+  position: sticky; // Makes it stick to the top
+  top: 0;
+  z-index: 1000; // Ensure it stays on top of other content
+}
+
+.container {
+  @include flex-between; // Use flex-between mixin
+  max-width: 1200px; // Match your app-container max-width
+  margin: 0 auto; // Center the content
+  padding: 0 $spacing-xl; // Horizontal padding for content inside navbar
+
+  @include breakpoint-sm {
+    padding: 0 $spacing-md; // Adjust padding for small screens
+  }
+}
+
+.logoSection {
+  @include flex-center; // Center items in logo section
+}
+
+.logoText {
+  font-size: $font-size-h2; // Larger font for title
+  font-weight: 700;
+  color: $color-white;
+  text-decoration: none; // Remove underline from link
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    opacity: 0.8;
+  }
+}
+
+.logoImageLink {
+  line-height: 0; // Remove extra space below image
+}
+
+.logoImage {
+  border-radius: $border-radius-sm; // Slightly rounded corners for the image
+}
+
+.navLinks {
+  ul {
+    @include flex-center; // Align nav items horizontally
+    gap: $spacing-lg; // Space between nav items
+  }
+}
+
+.navItem {
+  color: $color-white;
+  font-size: $font-size-base;
+  font-weight: 500;
+  padding: $spacing-xs $spacing-sm; // Padding around text to make clickable area larger
+  border-radius: $border-radius-sm;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+
+  &:hover {
+    background-color: rgba($color-white, 0.2); // Light highlight on hover
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}

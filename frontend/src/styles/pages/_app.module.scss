@@ -1,0 +1,32 @@
+@import '@/styles/variables';
+@import '@/styles/mixins';
+
+.container {
+  padding: $spacing-xl;
+  max-width: 1200px;
+  margin: 0 auto;
+  min-height: calc(100vh - 100px); // Adjust based on navbar height
+  display: flex;
+  flex-direction: column;
+  align-items: center; // Center content horizontally
+
+  @include breakpoint-sm {
+    padding: $spacing-md;
+  }
+}
+
+.curriculumGrid {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-xxl; // Space between subject sections
+  margin-top: $spacing-xl;
+}
+
+.topicCardsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); // Responsive grid
+  gap: $spacing-lg; // Space between cards
+  width: 100%;
+  justify-items: center; // Center cards in their grid cells
+}

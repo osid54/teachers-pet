@@ -36,8 +36,6 @@ def division(modifiers):
 
 def generate_arithmetic_problems(topic, count, modifiers):
     problems = []
-    topic = ["addition", "subtraction", "multiplication"]
-    modifiers = {"problem": {"digits":2, "dec":0, "neg":1}, "answer" : {"round":0}}
     for _ in range(count):
         topicChoice = topic[random.randint(0,len(topic)-1)]
         match topicChoice:

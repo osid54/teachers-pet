@@ -1,0 +1,10 @@
+@import '@/styles/variables';
+
+.header {
+  font-size: $font-size-h2;
+  color: $color-primary;
+  margin-top: $spacing-xxl;
+  margin-bottom: $spacing-lg;
+  text-align: center;
+  width: 100%; // Ensure it spans the grid
+}

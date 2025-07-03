@@ -1,0 +1,78 @@
+
+// Flexbox Mixins
+@mixin flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+@mixin flex-column-center {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+// Button Styles Mixin
+@mixin button-reset {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  outline: inherit;
+}
+
+@mixin button-styles($bg-color: $color-primary, $text-color: $color-white) {
+  @include button-reset;
+  padding: $spacing-md $spacing-lg;
+  border-radius: $border-radius-md;
+  background-color: $bg-color;
+  color: $text-color;
+  font-size: $font-size-base;
+  font-weight: 600;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+
+  &:hover {
+    background-color: darken($bg-color, 10%);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    background-color: $color-secondary;
+    cursor: not-allowed;
+    opacity: 0.7;
+    transform: none;
+  }
+}
+
+// Card/Box Styling Mixin
+@mixin card-styles($padding: $spacing-lg, $shadow: $box-shadow-sm) {
+  background-color: $color-white;
+  border-radius: $border-radius-md;
+  padding: $padding;
+  box-shadow: $shadow;
+}
+
+// Responsive Breakpoints (example, adjust as needed)
+@mixin breakpoint-sm {
+  @media (max-width: 768px) {
+    @content;
+  }
+}
+
+@mixin breakpoint-md {
+  @media (max-width: 1024px) {
+    @content;
+  }
+}

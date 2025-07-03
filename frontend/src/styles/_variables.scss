@@ -1,0 +1,52 @@
+// _variables.scss
+
+// Colors
+$color-main-100: hsla(0, 23%, 97%, 1);
+$color-main-200: hsla(0, 19%, 93%, 1);
+$color-main-300: hsla(0, 12%, 89%, 1);
+$color-main-400: hsla(0, 15%, 83%, 1);
+$color-main-500: hsla(0, 10%, 71%, 1);
+$color-main-600: hsla(0, 8%, 45%, 1);
+$color-main-700: hsla(0, 9%, 31%, 1);
+$color-main-800: hsla(0, 10%, 23%, 1);
+$color-main-900: hsla(0, 11%, 15%, 1);
+
+$color-primary: #007bff;          // A vibrant blue for primary actions/branding
+$color-secondary: #6c757d;        // A muted grey for secondary elements
+$color-accent: #28a745;           // A green for success/positive actions
+$color-danger: #dc3545;           // A red for errors/warnings
+
+$color-text: #343a40;             // Dark grey for main text
+$color-text-light: #6f7478;       // Lighter grey for secondary text
+$color-white: #ffffff;
+$color-light-grey: #f8f9fa;       // Light background for sections
+$color-border: #dee2e6;           // Light border color
+
+// Fonts
+$font-family-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+$font-family-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+
+$font-size-base: 1rem;            // 16px
+$font-size-sm: 0.875rem;          // 14px
+$font-size-lg: 1.25rem;           // 20px
+$font-size-h1: 2.5rem;            // 40px
+$font-size-h2: 2rem;              // 32px
+$font-size-h3: 1.75rem;           // 28px
+
+// Spacing
+$spacing-xxs: 4px;
+$spacing-xs: 8px;
+$spacing-sm: 12px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+$spacing-xxl: 48px;
+
+// Border Radius
+$border-radius-sm: 4px;
+$border-radius-md: 8px;
+$border-radius-lg: 12px;
+
+// Box Shadow
+$box-shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+$box-shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);

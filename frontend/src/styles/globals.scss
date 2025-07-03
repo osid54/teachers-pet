@@ -1,0 +1,84 @@
+@import 'variables';
+@import 'mixins';
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: $font-family-sans;
+  font-size: $font-size-base;
+  line-height: 1.6;
+  color: $color-main-500;
+  background-color: $color-main-200;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: $font-family-sans;
+  color: $color-main-600;
+  margin-top: $spacing-lg;
+  margin-bottom: $spacing-md;
+  font-weight: 700;
+}
+
+h1 { font-size: $font-size-h1; }
+h2 { font-size: $font-size-h2; }
+h3 { font-size: $font-size-h3; }
+
+p {
+  margin-bottom: $spacing-md;
+}
+
+a {
+  color: $color-main-100;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+ul, ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+input, button, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: $spacing-xl;
+
+  @include breakpoint-sm {
+    padding: $spacing-md;
+  }
+}
+
+.app-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: $spacing-xl;
+  flex-grow: 1;
+
+  @include breakpoint-sm {
+    padding: $spacing-md;
+  }
+}
+
+html, body {
+  height: 100%;
+}
+#__next {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
