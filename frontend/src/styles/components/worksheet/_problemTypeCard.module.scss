@@ -17,17 +17,32 @@
     transform: translateY(-5px);
     box-shadow: $box-shadow-md;
   }
+
+  @include breakpoint-sm {
+    @include card-styles($padding: $spacing-md, $shadow: $box-shadow-sm);
+    width: 128px;
+    height: 128px;
+  }
 }
 
 .title {
   font-size: $font-size-h3;
   color: $color-main-600;
+
+  @include breakpoint-sm {
+    font-size: $font-size-md;
+  }
+  
 }
 
 .description {
-  font-size: $font-size-sm;
+  font-size: $font-size-md;
   color: $color-main-500;
   flex-grow: 1;
+
+  @include breakpoint-sm {
+    font-size: $font-size-xs;
+  }
 }
 
 .selectButton {

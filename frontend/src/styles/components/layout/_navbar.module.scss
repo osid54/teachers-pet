@@ -9,16 +9,18 @@
   top: 0;
   z-index: 1000;
   font-family: Motley Forces, $font-family-sans;
+  text-align: center;
 }
 
 .container {
   @include flex-between;
-  max-width: 1600px;
+  max-width: 1500px;
   margin: 0 auto;
   padding: 0 $spacing-xl;
 
   @include breakpoint-sm {
     padding: 0 $spacing-md;
+    @include flex-row-center
   }
 }
 
@@ -31,6 +33,28 @@
   font-weight: 100;
   color: $color-main-100;
   text-decoration: none;
+  @include breakpoint-md {
+    font-size: $font-size-h3; 
+  }
+
+  @include breakpoint-sm {
+    font-size: $font-size-lg;
+    margin-right: $spacing-xxl; 
+  }
+}
+
+.desktopText {
+  display: block;
+  @include breakpoint-sm {
+    display: none;
+  }
+}
+
+.mobileText {
+  display: none;
+  @include breakpoint-sm {
+    display: block;
+  }
 }
 
 .logoImageLink {
@@ -45,6 +69,14 @@
   ul {
     @include flex-center;
     gap: $spacing-lg;
+
+    @include breakpoint-md {
+      gap: $spacing-md;
+    }
+
+    @include breakpoint-sm {
+      gap: $spacing-sm;
+    }
   }
 }
 
@@ -52,7 +84,6 @@
   color: $color-main-100;
   font-size: $font-size-base;
   font-weight: 500;
-  padding: $spacing-xs $spacing-sm; 
   border-radius: $border-radius-sm;
   transition: background-color 0.2s ease, transform 0.1s ease;
   font-family: Georgia, serif;

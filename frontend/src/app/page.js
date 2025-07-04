@@ -52,7 +52,7 @@ export default function HomePage() {
 
   return (
     <div className={styles.container}>
-      <h1>Generate Your Worksheet</h1>
+      <h1 className={styles.pageTitle}>Generate Your Worksheet</h1>
 
         <>
           {/* Backend Status Display */}
