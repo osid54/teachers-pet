@@ -1,6 +1,14 @@
 @import 'variables';
 @import 'mixins';
 
+@font-face {
+  font-family: 'Motley Forces';
+  src: url('/fonts/MotleyForces.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 html,
 body {
   padding: 0;
@@ -55,7 +63,7 @@ input, button, textarea, select {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  max-width: 1200px;
+  max-width: 1600px;
   margin: 0 auto;
   padding: $spacing-xl;
 
@@ -65,7 +73,7 @@ input, button, textarea, select {
 }
 
 .app-content {
-  max-width: 1200px;
+  max-width: 1600px;
   margin: 0 auto;
   padding: $spacing-xl;
   flex-grow: 1;
