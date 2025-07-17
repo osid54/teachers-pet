@@ -14,6 +14,9 @@ export default function HomePage() {
   const { statusMessage, isLoading: statusLoading, error: statusError } = useBackendStatus();
   const { generate, loading: generateLoading, error: generateError, pdfUrl } = useGenerateWorksheet();
   const [selectedTopicId, setSelectedTopicId] = useState(null);
+  const [topicSelectionMode, setTopicSelectionMode] = useState('single');
+  const [selectedTopicInstances, setSelectedTopicInstances] = useState([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const handleTopicSelect = (topicId) => {
     setSelectedTopicId(topicId);
