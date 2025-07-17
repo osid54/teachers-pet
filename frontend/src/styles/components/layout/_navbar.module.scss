@@ -84,9 +84,10 @@
   color: $color-main-100;
   font-size: $font-size-base;
   font-weight: 500;
-  border-radius: $border-radius-sm;
+  border-radius: $border-radius-md;
   transition: background-color 0.2s ease, transform 0.1s ease;
   font-family: Georgia, serif;
+  padding: $spacing-sm;
 
   &:hover {
     background-color: rgba($color-main-100, 0.2);

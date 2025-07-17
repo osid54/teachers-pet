@@ -1,22 +1,25 @@
 'use client';
 
+import React from 'react'; 
 import styles from '@/styles/components/worksheet/_problemTypeCard.module.scss';
-import { useState } from 'react'; 
 
-export default function ProblemTypeCard({ topic, onSelect }) {
-  // const [isSelected, setIsSelected] = useState(false);
+export default function ProblemTypeCard({ topic, onSelect, isSelected }) { 
 
   const handleClick = () => {
-    // setIsSelected(!isSelected);
-    onSelect(topic.id);
+    onSelect(topic);
   };
 
   return (
-    <div className={styles.card} onClick={handleClick}>
+    <div
+      className={`${styles.card} ${isSelected ? styles.selected : ''}`}
+      onClick={handleClick}
+    >
       <h3 className={styles.title}>{topic.name}</h3>
       <p className={styles.description}>{topic.description}</p>
-      {/* Icon  based on topic.id */}
-      {/* <button className={styles.selectButton}>Select</button> */}
+      {/* icon based on topic.id */}
+      {isSelected && (
+        <span className={styles.checkmark}>✔</span>
+      )}
     </div>
   );
 }

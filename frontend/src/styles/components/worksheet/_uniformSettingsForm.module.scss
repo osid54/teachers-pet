@@ -1,0 +1,14 @@
+@import '@/styles/variables';
+@import '@/styles/mixins';
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.inputField, .checkboxField {
+  // Styles inherited from generic UI components, but can add overrides here
+  // Example:
+  margin-bottom: $spacing-sm; // Override default margin-bottom from Input/Checkbox if needed
+}

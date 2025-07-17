@@ -12,6 +12,7 @@
   height: 200px;
   width: 200px;
   background-color: $color-main-100;
+  border: 2px solid transparent;
 
   &:hover {
     transform: translateY(-5px);
@@ -45,7 +46,16 @@
   }
 }
 
-.selectButton {
-  @include button-styles($bg-color: $color-main-100, $text-color: $color-main-100);
-  width: 100%;
+.checkmark {
+  font-size: $font-size-h2;
+  color: $color-main-600;
+  position: absolute;
+  top: $spacing-xs;
+  right: $spacing-xs;
+}
+
+.selected {
+  border-color: $color-main-600; 
+  box-shadow: $box-shadow-md; 
+  position: relative;
 }

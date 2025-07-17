@@ -3,7 +3,7 @@
 
 .button {
   @include button-reset;
-  padding: $spacing-md $spacing-lg;
+  padding: $spacing-sm $spacing-md;
   border-radius: $border-radius-md;
   font-size: $font-size-base;
   font-weight: 600;
@@ -29,38 +29,38 @@
 }
 
 .primary {
-  background-color: $color-primary;
-  color: $color-white;
+  background-color: $color-main-600;
+  color: $color-main-100;
 
   &:hover:not(:disabled) {
-    background-color: darken($color-primary, 10%);
+    background-color: darken($color-main-600, 10%);
   }
 }
 
 .secondary {
-  background-color: $color-secondary;
-  color: $color-white;
+  background-color: $color-main-500;
+  color: $color-main-100;
 
   &:hover:not(:disabled) {
-    background-color: darken($color-secondary, 10%);
+    background-color: darken($color-main-500, 10%);
   }
 }
 
 .accent {
-  background-color: $color-accent;
-  color: $color-white;
+  background-color: $color-main-300;
+  color: $color-main-100;
 
   &:hover:not(:disabled) {
-    background-color: darken($color-accent, 10%);
+    background-color: darken($color-main-300, 10%);
   }
 }
 
 .danger {
-  background-color: $color-danger;
-  color: $color-white;
+  background-color: $color-main-800;
+  color: $color-main-100;
 
   &:hover:not(:disabled) {
-    background-color: darken($color-danger, 10%);
+    background-color: darken($color-main-800, 10%);
   }
 }
 

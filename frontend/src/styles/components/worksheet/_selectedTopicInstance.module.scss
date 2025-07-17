@@ -1,0 +1,43 @@
+@import '@/styles/variables';
+@import '@/styles/mixins';
+
+.instanceCard {
+  @include card-styles($padding: $spacing-md, $shadow: $box-shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+  position: relative;
+}
+
+.header {
+  @include flex-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.topicName {
+  font-size: $font-size-base;
+  color: $color-main-500;
+  margin: 0;
+  font-weight: 600;
+  flex-grow: 1; 
+}
+
+.actions {
+  display: flex;
+  gap: $spacing-xs;
+}
+
+.actionButton {
+  padding: $spacing-xs;
+  min-width: 30px;
+  height: 30px;
+  font-size: $font-size-sm;
+}
+
+.modifiersForm {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm; 
+}
