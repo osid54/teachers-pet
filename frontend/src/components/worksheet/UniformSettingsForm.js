@@ -14,7 +14,7 @@ export default function UniformSettingsForm({ settings, onChange }) {
     return (
         <div className={styles.form}>
             <Input
-                label="Number of Pages"
+                label="Pages Per Subject"
                 type="number"
                 name="pageCount"
                 value={settings.pageCount}
@@ -22,6 +22,7 @@ export default function UniformSettingsForm({ settings, onChange }) {
                 min={1}
                 max={50}
                 step={1}
+                labelPosition="top"
                 className={styles.inputField}
             />
             <Input
@@ -33,6 +34,7 @@ export default function UniformSettingsForm({ settings, onChange }) {
                 min={1}
                 max={50}
                 step={1}
+                labelPosition="top"
                 className={styles.inputField}
             />
             <Checkbox
@@ -40,6 +42,7 @@ export default function UniformSettingsForm({ settings, onChange }) {
                 name="includeAnswerKey"
                 checked={settings.includeAnswerKey}
                 onChange={onChange}
+                labelPosition="top"
                 className={styles.checkboxField}
             />
         </div>

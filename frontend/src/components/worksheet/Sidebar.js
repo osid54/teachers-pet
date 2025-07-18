@@ -97,7 +97,7 @@ export default function Sidebar({
                     onClick={handleGenerateClick}
                     disabled={isGenerateButtonDisabled}
                     isLoading={isGenerating}
-                    variant="accent"
+                    variant="primary"
                     className={styles.generateButton}
                 >
                     Generate Worksheet

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useBackendStatus } from '@/hooks/useBackendStatus';
 import { useGenerateWorksheet } from '@/hooks/useGenerateWorksheet';
-import { curriculumData } from '@/lib/curriculum'; 
+import { curriculumData } from '@/lib/curriculum';
 
 import SubjectHeader from '@/components/worksheet/SubjectHeader';
 import ProblemTypeCard from '@/components/worksheet/ProblemTypeCard';
@@ -13,14 +13,13 @@ import { Button } from '@/components/ui';
 import Sidebar from '@/components/worksheet/Sidebar';
 import { v4 as uuidv4 } from 'uuid';
 
-import styles from '@/styles/pages/_app.module.scss';
+import styles from '@/styles/pages/_home.module.scss';
 
 export default function HomePage() {
   const { statusMessage, isLoading: statusLoading, error: statusError } = useBackendStatus();
   const { generate, loading: generateLoading, error: generateError, pdfUrl } = useGenerateWorksheet();
   const [topicSelectionMode, setTopicSelectionMode] = useState('single');
   const [selectedTopicInstances, setSelectedTopicInstances] = useState([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
@@ -38,7 +37,7 @@ export default function HomePage() {
       problem: {
         digits: 2,
         dec: 0,
-        neg: 0, 
+        neg: 0,
         frac: false,
       },
       answer: {
@@ -61,7 +60,7 @@ export default function HomePage() {
     };
 
     const newInstance = {
-      id: uuidv4(), 
+      id: uuidv4(),
       subject: topicWithSubject.subject,
       topicId: topicWithSubject.id,
       topicName: topicWithSubject.name,
@@ -74,15 +73,11 @@ export default function HomePage() {
       }
       return [...prevInstances, newInstance];
     });
-    setIsSidebarOpen(true);
   };
 
   const removeTopicInstance = (instanceIdToRemove) => {
     setSelectedTopicInstances((prevInstances) => {
       const updatedInstances = prevInstances.filter((inst) => inst.id !== instanceIdToRemove);
-      if (updatedInstances.length === 0) {
-        setIsSidebarOpen(false); 
-      }
       return updatedInstances;
     });
   };
@@ -109,7 +104,7 @@ export default function HomePage() {
       id: topic.id,
       name: topic.name,
       description: topic.description,
-      subject: subjectOfClickedTopic 
+      subject: subjectOfClickedTopic
     });
   };
 
@@ -134,70 +129,58 @@ export default function HomePage() {
 
   return (
     <div className={styles.container}>
-      <h1 className={styles.pageTitle}>Generate Your Worksheet</h1>
-        {/* Backend Status Display */}
-        {isMounted && (
-          <>
-            {statusLoading && <p>Backend Status: Connecting...</p>}
-            {statusError && <p style={{ color: 'red' }}>Backend Status Error: {statusError}</p>}
-            {!statusLoading && !statusError && <p>Backend Status: {statusMessage.message}</p>} 
-          </>
-        )}
+      <div className={styles.mainContent}>
+        <h1 className={styles.pageTitle}>Generate Your Worksheet</h1>
+        {/* How to Use Section */}
+        <HowToUse />
 
-          {/* How to Use Section */}
-          <HowToUse />
-
-          {/* Topic Selection Mode Buttons */}
-          <div className={styles.modeSelection}>
-            <Button
+        {/* Topic Selection Mode Buttons */}
+        <div className={styles.modeSelection}>
+          <Button
             onClick={() => {
               setTopicSelectionMode('single');
               setSelectedTopicInstances([]);
-              setIsSidebarOpen(false);
             }}
-              variant={topicSelectionMode === 'single' ? 'primary' : 'secondary'}
-              className={styles.modeButton}
-            >
-              Single Topic
-            </Button>
-            <Button
-              onClick={() => {
-                setTopicSelectionMode('multi');
-                if (selectedTopicInstances.length === 1 && !isSidebarOpen) {
-                  setIsSidebarOpen(true);
-                }
-              }}
-              variant={topicSelectionMode === 'multi' ? 'primary' : 'secondary'}
-              className={styles.modeButton}
-            >
-              Multi Topic
-            </Button>
-          </div>
+            variant={topicSelectionMode === 'single' ? 'primary' : 'secondary'}
+            className={styles.modeButton}
+          >
+            Single Topic
+          </Button>
+          <Button
+            onClick={() => {
+              setTopicSelectionMode('multi');
+            }}
+            variant={topicSelectionMode === 'multi' ? 'primary' : 'secondary'}
+            className={styles.modeButton}
+          >
+            Multi Topic
+          </Button>
+        </div>
 
-      {/* Curriculum Grid */}
-      <div className={styles.curriculumGrid}>
-        {curriculumData.map(subjectData => (
-          <React.Fragment key={subjectData.subject}>
-            <SubjectHeader title={subjectData.subject} />
-            <div className={styles.topicCardsGrid}>
-              {subjectData.topics.map(topic => {
-                const isCardSelected = selectedTopicInstances.some(inst => inst.topicId === topic.id);
-                return (
-                  <ProblemTypeCard
-                    key={topic.id}
-                    topic={topic}
-                    onSelect={handleTopicCardClick}
-                    isSelected={isCardSelected}
-                  />
-                );
-              })}
-            </div>
-          </React.Fragment>
-        ))}
+        {/* Curriculum Grid */}
+        <div className={styles.curriculumGrid}>
+          {curriculumData.map(subjectData => (
+            <React.Fragment key={subjectData.subject}>
+              <SubjectHeader title={subjectData.subject} />
+              <div className={styles.topicCardsGrid}>
+                {subjectData.topics.map(topic => {
+                  const isCardSelected = selectedTopicInstances.some(inst => inst.topicId === topic.id);
+                  return (
+                    <ProblemTypeCard
+                      key={topic.id}
+                      topic={topic}
+                      onSelect={handleTopicCardClick}
+                      isSelected={isCardSelected}
+                    />
+                  );
+                })}
+              </div>
+            </React.Fragment>
+          ))}
+        </div>
       </div>
-
       {/* Worksheet Generation Sidebar */}
-      {isSidebarOpen && isMounted && ( 
+      {isMounted && (
         <Sidebar
           mode={topicSelectionMode}
           selectedTopicInstances={selectedTopicInstances}
@@ -209,13 +192,6 @@ export default function HomePage() {
           isGenerating={generateLoading}
           generateError={generateError}
         />
-      )}
-
-      {/* Generation Status/Errors */}
-      {isMounted && generateLoading && <p>Generating worksheet...</p>}
-      {isMounted && generateError && <p style={{ color: 'red' }}>Generation Error: {generateError}</p>}
-      {isMounted && pdfUrl && !generateLoading && !generateError && (
-        <p>Worksheet generated! Check the new tab or download.</p>
       )}
     </div>
   );

@@ -45,7 +45,7 @@ export default function SelectedTopicInstance({
                     {mode === 'multi' && (
                         <Button
                             onClick={() => onAddInstance(instance)}
-                            variant="secondary"
+                            variant="primary"
                             className={styles.actionButton}
                         >
                             +
@@ -53,7 +53,7 @@ export default function SelectedTopicInstance({
                     )}
                     <Button
                         onClick={() => onRemove(instance.id)}
-                        variant="danger"
+                        variant="primary"
                         className={styles.actionButton}
                     >
                         x
@@ -70,12 +70,14 @@ export default function SelectedTopicInstance({
                     onChange={handleModifierChange}
                     min={1}
                     max={5}
+                    labelPosition='inline'
                 />
                 <Checkbox
                     label="Allow Negatives"
                     name="problem.neg"
                     checked={instance.modifiers.problem.neg === 1 || instance.modifiers.problem.neg === true}
                     onChange={handleModifierChange}
+                    labelPosition='inline'
                 />
                 <Input
                     label="Decimals"
@@ -85,6 +87,7 @@ export default function SelectedTopicInstance({
                     onChange={handleModifierChange}
                     min={0}
                     max={5}
+                    labelPosition='inline'
                 />
                 <Input
                     label="Round Answer To"
@@ -94,6 +97,7 @@ export default function SelectedTopicInstance({
                     onChange={handleModifierChange}
                     min={0}
                     max={5}
+                    labelPosition='inline'
                 />
             </div>
         </div>

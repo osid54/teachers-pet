@@ -2,13 +2,25 @@
 @import '@/styles/mixins';
 
 .form {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
   gap: $spacing-md;
+  align-items: start;
+  padding: $spacing-sm;
+
+  @include breakpoint-md {
+    grid-template-columns: repeat(2, 1fr);
+    gap: $spacing-sm;
+  }
+
+  @include breakpoint-sm {
+    grid-template-columns: 1fr;
+    gap: $spacing-sm;
+  }
 }
 
 .inputField, .checkboxField {
-  // Styles inherited from generic UI components, but can add overrides here
-  // Example:
-  margin-bottom: $spacing-sm; // Override default margin-bottom from Input/Checkbox if needed
+  margin-bottom: 0; 
+  
+  width: 100%; 
 }

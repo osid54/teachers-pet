@@ -48,14 +48,14 @@
 
 .checkmark {
   font-size: $font-size-h2;
-  color: $color-main-600;
+  color: $color-main-500;
   position: absolute;
-  top: $spacing-xs;
-  right: $spacing-xs;
+  bottom: $spacing-xs;
+  right: $spacing-sm;
 }
 
 .selected {
-  border-color: $color-main-600; 
+  border-color: $color-main-500; 
   box-shadow: $box-shadow-md; 
   position: relative;
 }

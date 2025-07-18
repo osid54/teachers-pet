@@ -30,12 +30,13 @@ export default function Input({
     min,
     max,
     step,
+    labelPosition = 'inline',
     ...rest
 }) {
     const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
 
     return (
-        <div className={`${styles.inputGroup} ${className}`}>
+        <div className={`${styles.inputGroup} ${styles[labelPosition]} ${className}`}>
             {label && (
                 <label htmlFor={inputId} className={styles.label}>
                     {label}

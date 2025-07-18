@@ -6,7 +6,6 @@ export const curriculumData = [
             { id: 'subtraction', name: 'Subtraction', description: 'Basic subtraction problems.' },
             { id: 'multiplication', name: 'Multiplication', description: 'Basic multiplication problems.' },
             { id: 'division', name: 'Division', description: 'Basic division problems.' },
-            { id: 'mixed-arithmetic', name: 'Mixed Operations', description: 'A mix of addition, subtraction, multiplication, and division.' },
         ]
     },
     {

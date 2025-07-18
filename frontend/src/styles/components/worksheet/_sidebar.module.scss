@@ -10,8 +10,7 @@
   background-color: $color-main-100;
   box-shadow: -4px 0 10px rgba(0, 0, 0, 0.1);
   padding: $spacing-lg;
-  padding-bottom: 100px; 
-  overflow-y: auto;
+  overflow-y: hidden;
   z-index: 900; 
 
   transform: translateX(0);
@@ -35,6 +34,7 @@
   margin-bottom: $spacing-xl;
   padding-bottom: $spacing-md;
   border-bottom: 1px solid $color-main-500; 
+  box-shadow: $box-shadow-md;
 
   &:last-of-type {
     border-bottom: none;
@@ -75,8 +75,7 @@
   left: 0;
   right: 0;
   padding: $spacing-lg;
-  background-color: $color-main-900; 
-  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05); 
+  background-color: $color-main-100; 
   text-align: center; 
 }
 

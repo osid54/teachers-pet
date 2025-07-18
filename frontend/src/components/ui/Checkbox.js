@@ -20,12 +20,13 @@ export default function Checkbox({
     disabled = false,
     className = '',
     id,
+    labelPosition = 'inline',
     ...rest
 }) {
     const checkboxId = id || `checkbox-${Math.random().toString(36).substr(2, 9)}`;
 
     return (
-        <div className={`${styles.checkboxGroup} ${className}`}>
+        <div className={`${styles.checkboxGroup} ${styles[labelPosition]} ${className}`}> 
             <input
                 type="checkbox"
                 id={checkboxId}
