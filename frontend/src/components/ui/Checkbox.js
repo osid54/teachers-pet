@@ -27,6 +27,11 @@ export default function Checkbox({
 
     return (
         <div className={`${styles.checkboxGroup} ${styles[labelPosition]} ${className}`}> 
+            {label && (
+                <label htmlFor={checkboxId} className={styles.label}>
+                    {label}
+                </label>
+            )}
             <input
                 type="checkbox"
                 id={checkboxId}
@@ -36,11 +41,6 @@ export default function Checkbox({
                 className={styles.checkbox}
                 {...rest}
             />
-            {label && (
-                <label htmlFor={checkboxId} className={styles.label}>
-                    {label}
-                </label>
-            )}
         </div>
     );
 }

@@ -21,7 +21,7 @@
   color: $color-main-500;
   margin: 0;
   font-weight: 600;
-  flex-grow: 1; 
+  flex-grow: 1;
 }
 
 .actions {
@@ -37,11 +37,11 @@
 }
 
 .modifiersForm {
-  display: flex;
-  flex-direction: column;
-  gap: $spacing-sm; 
-}
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $spacing-md;
 
-.modifiersRow {
-  @include flex-row-center;
+  @include breakpoint-sm {
+    grid-template-columns: 1fr;
+  }
 }
