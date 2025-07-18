@@ -19,9 +19,9 @@ export const fetchBackendStatus = async () => {
   }
 };
 
-export const generateWorksheetPDF = async (worksheetData) => {
+export const generateWorksheetPDF = async (generationRequests) => {
   try {
-    const response = await api.post('/generate-worksheet', worksheetData, {
+    const response = await api.post('/generate-worksheet', generationRequests, {
       responseType: 'blob',
     });
     return response.data;

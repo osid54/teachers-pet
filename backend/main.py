@@ -16,7 +16,7 @@ app = FastAPI(
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    # "https://www.your-teachers-pet-frontend.com",
+    # "https://www.teachers-pet.us",
 ]
 
 app.add_middleware(
@@ -27,12 +27,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class WorksheetRequest(BaseModel):
-    subject: str = Field(..., description="The subject of the worksheet (e.g., 'Arithmetic').")
-    topic: list = Field(..., description="The specific topic within the subject (e.g., 'Addition').")
-    page_count: int = Field(..., gt=0, description="Number of pages for the worksheet.")
-    include_answer_key: bool = Field(False, description="Whether to include an answer key.")
-    modifiers: dict = Field({}, description="Dictionary of specific modifiers for problem generation.")
+class ProblemModifiers(BaseModel):
+    digits: int = Field(1, gt=0)
+    dec: int = Field(0, ge=0)
+    neg: int = Field(0, ge=0, le=4)
+    frac: bool = Field(False)
+
+class AnswerModifiers(BaseModel):
+    round: int = Field(0, ge=0)
+
+class SectionRequest(BaseModel):
+    subject: str = Field(..., description="The subject (e.g., 'Arithmetic').")
+    topic: list[str] = Field(..., description="List of specific topic IDs within the subject (e.g., ['addition', 'multiplication']).")
+    page_count: int = Field(..., gt=0, description="Number of pages for this section.")
+    include_answer_key: bool = Field(False, description="Whether to include an answer key for this section.")
+    problems_per_page: int = Field(10, gt=0, description="Number of problems per page for this section.")
+    modifiers: dict = Field({}, description="Dictionary of specific modifiers for this section's problem generation.")
+
 
 @app.get("/")
 async def root():
@@ -42,34 +53,52 @@ async def root():
     return {"message": "Teacher's Pet API is running!"}
 
 @app.post("/generate-worksheet")
-async def generate_worksheet_endpoint(request_data: WorksheetRequest):
+async def generate_worksheet_endpoint(requests_list: list[SectionRequest]):
     """
-    Generates a customized math worksheet as a PDF.
+    Generates a customized math worksheet as a PDF from multiple sections.
     """
-    subject = request_data.subject
-    topic = request_data.topic
-    page_count = request_data.page_count
-    include_answer_key = request_data.include_answer_key
-    modifiers = request_data.modifiers
+    all_problems_data_for_pdf = []
+    overall_include_answer_key = False
 
-    num_problems_per_page = 10
-    total_problems = page_count * num_problems_per_page
+    for request_data in requests_list:
+        subject = request_data.subject
+        topic_ids = request_data.topic
+        page_count = request_data.page_count
+        include_answer_key = request_data.include_answer_key
+        modifiers = request_data.modifiers
+        problems_per_page = request_data.problems_per_page
 
-    problems_objects = []
-    try:
+        total_problems_for_section = page_count * problems_per_page
+
+        problems_objects_for_section = []
         if subject == 'Arithmetic':
-            problems_objects = generate_arithmetic_problems(topic, total_problems, modifiers)
+            problems_objects_for_section = generate_arithmetic_problems(
+                topic_ids,
+                total_problems_for_section,
+                modifiers
+            )
         else:
             raise HTTPException(status_code=400, detail=f"Subject '{subject}' not supported.")
 
-        problems_data_for_pdf = [p.to_dict() for p in problems_objects]
+        section_problems_data = [p.to_dict() for p in problems_objects_for_section]
+        
+        all_problems_data_for_pdf.append({
+            "type": "section_header",
+            "subject": subject,
+            "topic_name": ", ".join(topic_id.capitalize() for topic_id in topic_ids),
+            "page_count": page_count,
+            "problems_per_page": problems_per_page,
+            "modifiers": modifiers
+        })
+        all_problems_data_for_pdf.extend(section_problems_data)
 
+        if include_answer_key:
+            overall_include_answer_key = True
+
+    try:
         pdf_buffer = create_pdf_worksheet(
-            problems_data_for_pdf,
-            include_answer_key,
-            subject,
-            topic,
-            num_problems_per_page
+            all_problems_data_for_pdf,
+            overall_include_answer_key,
         )
 
         return StreamingResponse(

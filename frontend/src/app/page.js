@@ -47,20 +47,25 @@ export default function HomePage() {
     };
   };
 
-  const addTopicInstance = (topicToAdd) => {
-    const fullTopic = curriculumData.flatMap(s => s.topics).find(t => t.id === topicToAdd.id);
-
-    if (!fullTopic) {
-      console.error("Attempted to add an invalid topic:", topicToAdd);
-      return;
-    }
+  const addTopicInstance = (topicWithSubject) => {
+    const defaultModifiers = {
+      problem: {
+        digits: 2,
+        dec: 0,
+        neg: 0,
+        frac: false,
+      },
+      answer: {
+        round: 0,
+      },
+    };
 
     const newInstance = {
-      id: uuidv4(),
-      subject: fullTopic.subject,
-      topicId: fullTopic.id,
-      topicName: fullTopic.name,
-      modifiers: getDefaultModifiersForTopic(fullTopic.id),
+      id: uuidv4(), 
+      subject: topicWithSubject.subject,
+      topicId: topicWithSubject.id,
+      topicName: topicWithSubject.name,
+      modifiers: { ...defaultModifiers },
     };
 
     setSelectedTopicInstances((prevInstances) => {
@@ -69,7 +74,6 @@ export default function HomePage() {
       }
       return [...prevInstances, newInstance];
     });
-
     setIsSidebarOpen(true);
   };
 
@@ -92,7 +96,21 @@ export default function HomePage() {
   };
 
   const handleTopicCardClick = (topic) => {
-    addTopicInstance(topic);
+    const subjectOfClickedTopic = curriculumData.find(s =>
+      s.topics.some(t => t.id === topic.id)
+    )?.subject;
+
+    if (!subjectOfClickedTopic) {
+      console.error("Subject not found for topic:", topic);
+      return;
+    }
+
+    addTopicInstance({
+      id: topic.id,
+      name: topic.name,
+      description: topic.description,
+      subject: subjectOfClickedTopic 
+    });
   };
 
   const handleGenerateButtonClick = (uniformSettings) => {
@@ -103,7 +121,7 @@ export default function HomePage() {
 
     const generationRequests = selectedTopicInstances.map(instance => ({
       subject: instance.subject,
-      topic: instance.topicName,
+      topic: [instance.topicId],
       page_count: uniformSettings.pageCount,
       include_answer_key: uniformSettings.includeAnswerKey,
       problems_per_page: uniformSettings.problemsPerPage,
@@ -114,35 +132,15 @@ export default function HomePage() {
     generate(generationRequests);
   };
 
-  /* const worksheetData = {
-      subject: 'Arithmetic',
-      topic: ["addition", "subtraction", "multiplication"],
-      page_count: 1,
-      include_answer_key: true,
-      modifiers: {
-        "problem": {
-          "digits": 2,
-          "dec": 0,
-          "neg": 1,
-          "frac": false,
-        },
-        "answer": {
-          "round": 0,
-        },
-      },
-    };
-    generate(worksheetData);
-  }; */
-
   return (
     <div className={styles.container}>
       <h1 className={styles.pageTitle}>Generate Your Worksheet</h1>
-        {/* Backend Status Display (consider moving to a discreet toast/notification) */}
-        {isMounted && ( // Only render client-side content after mount
+        {/* Backend Status Display */}
+        {isMounted && (
           <>
             {statusLoading && <p>Backend Status: Connecting...</p>}
             {statusError && <p style={{ color: 'red' }}>Backend Status Error: {statusError}</p>}
-            {!statusLoading && !statusError && <p>Backend Status: {statusMessage.message}</p>} {/* Access .message */}
+            {!statusLoading && !statusError && <p>Backend Status: {statusMessage.message}</p>} 
           </>
         )}
 
@@ -213,7 +211,7 @@ export default function HomePage() {
         />
       )}
 
-      {/* Generation Status/Errors (can be integrated into sidebar or a toast) */}
+      {/* Generation Status/Errors */}
       {isMounted && generateLoading && <p>Generating worksheet...</p>}
       {isMounted && generateError && <p style={{ color: 'red' }}>Generation Error: {generateError}</p>}
       {isMounted && pdfUrl && !generateLoading && !generateError && (

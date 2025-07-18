@@ -3,7 +3,7 @@
 .listContainer {
   display: flex;
   flex-direction: column;
-  gap: $spacing-md;
+  gap: $spacing-sm;
   max-height: 400px;
   overflow-y: auto;
   padding-right: $spacing-xs;
@@ -13,5 +13,5 @@
   font-size: $font-size-sm;
   color: $color-main-500;
   text-align: center;
-  padding: $spacing-md;
+  padding: $spacing-sm;
 }
