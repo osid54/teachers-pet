@@ -16,6 +16,7 @@ class numGen:
         if dec > 0:
             decMax = (10 ** dec) - 1
             decPart = float(r.randint(0, decMax)) / (10**dec)
+            decPart = round(decPart, dec)
         sign = 1 if intPart >= 0 else -1
         calcNum = intPart + decPart * sign
         if dec == 0:

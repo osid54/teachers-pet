@@ -84,13 +84,6 @@ export default function Sidebar({
                 )}
             </section>
 
-            {/* Generation Status/Errors (can also be a toast/modal) */}
-            {generateError && (
-                <div className={styles.errorMessage}>
-                    Error: {generateError}
-                </div>
-            )}
-
             {/* Generate Button (fixed at bottom of sidebar) */}
             <div className={styles.generateButtonContainer}>
                 <Button
