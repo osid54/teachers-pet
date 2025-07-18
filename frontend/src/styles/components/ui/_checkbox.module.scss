@@ -16,16 +16,16 @@
   -moz-appearance: none;
   width: 28px;
   height: 28px;
-  border: 2px solid $color-main-500;
+  border: 1px solid $color-main-300;
   border-radius: $border-radius-sm;
   background-color: $color-main-200;
-  margin-right: $spacing-xs;
+  margin: $spacing-xs;
   cursor: pointer;
   position: relative;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 
   &:checked {
-    background-color: $color-main-300;
+    background-color: $color-main-200;
     border-color: $color-main-300;
 
     &::after {
@@ -42,7 +42,8 @@
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 2px rgba($color-main-400, 0.2);
+    border-color: $color-main-500;
+    box-shadow: 0 0 0 2px rgba($color-main-500, 0.2);
   }
 
   &:disabled {
@@ -59,9 +60,9 @@
 }
 
 .label {
-  font-size: $font-size-base;
+  font-size: $font-size-sm;
   color: $color-main-500;
-  cursor: pointer;
+  font-weight: 500;
 }
 
 .checkbox:disabled + .label {

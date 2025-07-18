@@ -62,43 +62,50 @@ export default function SelectedTopicInstance({
             </div>
 
             <div className={styles.modifiersForm}>
-                <Input
-                    label="Digits"
-                    type="number"
-                    name="problem.digits"
-                    value={instance.modifiers.problem.digits}
-                    onChange={handleModifierChange}
-                    min={1}
-                    max={5}
-                    labelPosition='inline'
-                />
-                <Checkbox
-                    label="Allow Negatives"
-                    name="problem.neg"
-                    checked={instance.modifiers.problem.neg === 1 || instance.modifiers.problem.neg === true}
-                    onChange={handleModifierChange}
-                    labelPosition='inline'
-                />
-                <Input
-                    label="Decimals"
-                    type="number"
-                    name="problem.dec"
-                    value={instance.modifiers.problem.dec}
-                    onChange={handleModifierChange}
-                    min={0}
-                    max={5}
-                    labelPosition='inline'
-                />
-                <Input
-                    label="Round Answer To"
-                    type="number"
-                    name="answer.round"
-                    value={instance.modifiers.answer.round}
-                    onChange={handleModifierChange}
-                    min={0}
-                    max={5}
-                    labelPosition='inline'
-                />
+                <div className={styles.modifiersRow}>
+                    <Input
+                        label="Digits"
+                        type="number"
+                        name="problem.digits"
+                        value={instance.modifiers.problem.digits}
+                        onChange={handleModifierChange}
+                        min={1}
+                        max={5}
+                        maxDigits={1}
+                        labelPosition='inline'
+                    />
+                    <Checkbox
+                        label="Allow Negatives"
+                        name="problem.neg"
+                        checked={instance.modifiers.problem.neg === 1 || instance.modifiers.problem.neg === true}
+                        onChange={handleModifierChange}
+                        labelPosition='inline'
+                    />
+                </div>
+                <div className={styles.modifiersRow}>
+                    <Input
+                        label="Decimals"
+                        type="number"
+                        name="problem.dec"
+                        value={instance.modifiers.problem.dec}
+                        onChange={handleModifierChange}
+                        min={0}
+                        max={5}
+                        maxDigits={1}
+                        labelPosition='inline'
+                    />
+                    <Input
+                        label="Round Answer To"
+                        type="number"
+                        name="answer.round"
+                        value={instance.modifiers.answer.round}
+                        onChange={handleModifierChange}
+                        min={0}
+                        max={5}
+                        maxDigits={1}
+                        labelPosition='inline'
+                    />
+                </div>
             </div>
         </div>
     );

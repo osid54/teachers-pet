@@ -31,12 +31,23 @@ export default function Input({
     max,
     step,
     labelPosition = 'inline',
+    maxDigits,
     ...rest
 }) {
     const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+    if (type === 'number' && maxDigits) {
+        const maxVal = 10 ** maxDigits - 1;
+        if (value > maxVal) {
+            value = Math.floor(value/10);
+        }
+        if (value > max) {
+            value = max;
+        }
+    }
+
 
     return (
-        <div className={`${styles.inputGroup} ${styles[labelPosition]} ${className}`}>
+        <div className={`${styles.inputGroup} ${styles[labelPosition]} ${styles[type]} ${className}`}>
             {label && (
                 <label htmlFor={inputId} className={styles.label}>
                     {label}

@@ -3,13 +3,15 @@
 
 .sidebar {
   position: fixed;
+  top: 0;
   bottom: 0;
   right: 0;
-  height: 90vh; 
+  height: calc(100vh - 100px); 
   width: 350px;
   background-color: $color-main-100;
   box-shadow: -4px 0 10px rgba(0, 0, 0, 0.1);
   padding: $spacing-lg;
+  padding-top: 100px;
   overflow-y: hidden;
   z-index: 900; 
 
@@ -23,17 +25,16 @@
 }
 
 .sidebarTitle {
-  font-size: $font-size-h2;
-  color: $color-main-500;
+  font-size: $font-size-h3;
+  color: $color-main-600;
   margin-top: 0;
-  margin-bottom: $spacing-md;
+  margin-bottom: $spacing-xs;
   text-align: center;
 }
 
 .section {
-  margin-bottom: $spacing-xl;
-  padding-bottom: $spacing-md;
-  border-bottom: 1px solid $color-main-500; 
+  margin-bottom: $spacing-sm;
+  padding: $spacing-md 0;
   box-shadow: $box-shadow-md;
 
   &:last-of-type {
@@ -75,6 +76,7 @@
   left: 0;
   right: 0;
   padding: $spacing-lg;
+  margin-bottom: $spacing-lg;
   background-color: $color-main-100; 
   text-align: center; 
 }

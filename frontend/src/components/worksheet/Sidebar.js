@@ -61,7 +61,7 @@ export default function Sidebar({
 
             {/* Uniform Settings Section */}
             <section className={styles.section}>
-                <h3 className={styles.sectionTitle}>Global Settings</h3>
+                <h3 className={styles.sectionTitle}>General Settings</h3>
                 <UniformSettingsForm
                     settings={uniformSettings}
                     onChange={handleUniformSettingChange}

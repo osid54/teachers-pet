@@ -10,7 +10,7 @@
   align-items: center;
   gap: $spacing-sm;
 
-  .label { flex-shrink: 0; width: 100px; text-align: right; }
+  .label { flex-shrink: 0; width: 100px; text-align: center; }
   .input { flex-grow: 1; }
 }
 
@@ -58,4 +58,16 @@
     margin-bottom: 0; 
     text-align: center;
   }
+}
+
+.number {
+  .label {
+      flex-shrink: 0;
+      width: 100px;
+      text-align: center;
+    }
+  
+    .input {
+      width: 32px;
+    }
 }

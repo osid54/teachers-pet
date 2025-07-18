@@ -22,6 +22,7 @@ export default function UniformSettingsForm({ settings, onChange }) {
                 min={1}
                 max={50}
                 step={1}
+                maxDigits={2}
                 labelPosition="top"
                 className={styles.inputField}
             />
@@ -34,6 +35,7 @@ export default function UniformSettingsForm({ settings, onChange }) {
                 min={1}
                 max={50}
                 step={1}
+                maxDigits={2}
                 labelPosition="top"
                 className={styles.inputField}
             />

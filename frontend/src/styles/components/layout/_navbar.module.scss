@@ -5,8 +5,10 @@
   background-color: $color-main-600; 
   padding: $spacing-md 0;
   box-shadow: $box-shadow-md;
-  position: sticky; 
+  position: fixed; 
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 1000;
   font-family: Motley Forces, $font-family-sans;
   text-align: center;
