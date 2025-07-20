@@ -1,14 +1,16 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import declarative_base, Mapped, mapped_column
-from sqlalchemy import String
-
 import os
+import sys
+from pathlib import Path
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://dbuser:dbpassword@localhost/teachers_pet_db")
+backend_path = Path(__file__).parent
+sys.path.append(str(backend_path))
+
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from models import Base
+
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg_async://teacherspetuser:teacherspetsecretpassword@localhost/teachers_pet_db")
 
 engine = create_async_engine(DATABASE_URL, echo=True)
-
-Base = declarative_base()
 
 AsyncSessionLocal = async_sessionmaker(
     autocommit=False,
@@ -21,16 +23,7 @@ AsyncSessionLocal = async_sessionmaker(
 async def get_db():
     async with AsyncSessionLocal() as session:
         yield session
-        await session.commit()
-
-class User(Base):
-    __tablename__ = "users"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    username: Mapped[str] = mapped_column(String(50), unique=True, index=True)
-    hashed_password: Mapped[str] = mapped_column(String)
-
-    def __repr__(self):
-        return f"<User(id={self.id}, username='{self.username}')>"
+        await session.close()
 
 async def create_db_and_tables():
     async with engine.begin() as conn:
