@@ -35,11 +35,24 @@ export default function Sidebar({
         pageCount: 1,
         problemsPerPage: 10,
         includeAnswerKey: true,
+        mixedProblems: false,
     });
 
+    const [isMounted, setIsMounted] = useState(false);
+
     useEffect(() => {
-        onUniformSettingChange(uniformSettings);
-    }, [uniformSettings, onUniformSettingChange]);
+        setIsMounted(true);
+    }, []);
+
+    useEffect(() => {
+        if (isMounted) {
+            onUniformSettingChange(uniformSettings);
+        }
+    }, [uniformSettings, onUniformSettingChange, isMounted]);
+
+    if (!isMounted) {
+        return null;
+    }
 
     const handleUniformSettingChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -65,14 +78,15 @@ export default function Sidebar({
                 <UniformSettingsForm
                     settings={uniformSettings}
                     onChange={handleUniformSettingChange}
+                    mode={mode}
                 />
             </section>
 
             {/* Selected Topics List Section */}
             <section className={styles.section}>
-                <h3 className={styles.sectionTitle}>Selected Topics ({mode} mode)</h3>
+                <h3 className={styles.sectionTitle}>Selected Topic{mode === "multi" ? "s" : ""} ({mode} mode)</h3>
                 {selectedTopicInstances.length === 0 ? (
-                    <p className={styles.noTopicsMessage}>Select topics from the grid to add them here.</p>
+                    <p className={styles.noTopicsMessage}>Select {mode === "multi" ? "topics" : "a topic"} from the grid to add {mode === "multi" ? "them" : "it"} here.</p>
                 ) : (
                     <SelectedTopicsList
                         mode={mode}

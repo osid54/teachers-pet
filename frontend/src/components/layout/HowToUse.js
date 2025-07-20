@@ -28,6 +28,10 @@ export default function HowToUse() {
         }
     }, [isOpen, isMounted]);
 
+    if (!isMounted) {
+        return null;
+    }
+
     const toggleOpen = () => {
         setIsOpen(!isOpen);
     };

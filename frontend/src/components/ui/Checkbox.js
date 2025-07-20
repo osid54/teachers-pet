@@ -24,7 +24,7 @@ export default function Checkbox({
     ...rest
 }) {
     const checkboxId = id || `checkbox-${Math.random().toString(36).substr(2, 9)}`;
-
+    const isChecked = Boolean(checked);
     return (
         <div className={`${styles.checkboxGroup} ${styles[labelPosition]} ${className}`}> 
             {label && (
@@ -35,7 +35,7 @@ export default function Checkbox({
             <input
                 type="checkbox"
                 id={checkboxId}
-                checked={checked}
+                checked={isChecked}
                 onChange={onChange}
                 disabled={disabled}
                 className={styles.checkbox}

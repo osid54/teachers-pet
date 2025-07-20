@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from '@/styles/components/ui/_input.module.scss';
 
 /*
@@ -32,19 +32,96 @@ export default function Input({
     step,
     labelPosition = 'inline',
     maxDigits,
+    name,
     ...rest
 }) {
     const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
-    if (type === 'number' && maxDigits) {
-        const maxVal = 10 ** maxDigits - 1;
-        if (value > maxVal) {
-            value = Math.floor(value/10);
-        }
-        if (value > max) {
-            value = max;
-        }
-    }
 
+    const getInitialNumberValue = (val, minProp) => {
+        if (typeof val === 'number') {
+            return String(val);
+        }
+        if (val === null || val === undefined || val === '') {
+            return String(minProp !== undefined ? minProp : 0);
+        }
+        return String(val);
+    };
+
+    const initialInternalValue =
+        type === 'number'
+            ? getInitialNumberValue(value, min)
+            : String(value || '');
+
+    const [internalValue, setInternalValue] = useState(initialInternalValue);
+
+    useEffect(() => {
+        const parentValueString =
+            type === 'number'
+                ? getInitialNumberValue(value, min)
+                : String(value || '');
+
+        if (parentValueString !== internalValue) {
+            setInternalValue(parentValueString);
+        }
+    }, [value, min, type, internalValue, label]);
+
+    const handleInputChange = (event) => {
+        let rawInputValue = event.target.value;
+
+        if (type === 'number') {
+            rawInputValue = rawInputValue.replace(/[^0-9]/g, '');
+
+            if (maxDigits !== undefined && rawInputValue.length > maxDigits) {
+                rawInputValue = rawInputValue.slice(0, maxDigits);
+            }
+        }
+
+        setInternalValue(rawInputValue);
+
+        onChange({
+            ...event,
+            target: {
+                ...event.target,
+                name: event.target.name,
+                value: rawInputValue,
+            },
+        });
+    };
+
+    const handleInputBlur = (event) => {
+        if (type === 'number') {
+            let finalValue = event.target.value;
+
+            if (finalValue === '') { 
+                finalValue = String(min !== undefined ? min : 0);
+            }
+
+            const numValue = parseInt(finalValue, 10);
+
+            if (!isNaN(numValue)) {
+                if (min !== undefined && numValue < min) {
+                    finalValue = String(min);
+                }
+                if (max !== undefined && numValue > max) {
+                    finalValue = String(max);
+                }
+            } else {
+                finalValue = String(min !== undefined ? min : 0);
+            }
+
+            if (String(value || '') !== finalValue) {
+                onChange({
+                    ...event,
+                    target: {
+                        ...event.target,
+                        name: event.target.name,
+                        value: finalValue,
+                    },
+                });
+            }
+            setInternalValue(finalValue);
+        }
+    };
 
     return (
         <div className={`${styles.inputGroup} ${styles[labelPosition]} ${styles[type]} ${className}`}>
@@ -56,14 +133,16 @@ export default function Input({
             <input
                 id={inputId}
                 type={type}
-                value={value}
-                onChange={onChange}
+                value={internalValue}
+                onChange={handleInputChange}
+                onBlur={handleInputBlur}
                 placeholder={placeholder}
                 disabled={disabled}
                 className={styles.input}
                 min={min}
                 max={max}
                 step={step}
+                name={name}
                 {...rest}
             />
         </div>

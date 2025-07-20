@@ -22,16 +22,30 @@ export default function SelectedTopicInstance({
 }) {
     const handleModifierChange = (e) => {
         const { name, value, type, checked } = e.target;
+
         const updatedModifiers = { ...instance.modifiers };
 
-        if (name.includes('.')) {
+        let finalValueForState;
+
+        if (type === 'checkbox') {
+            finalValueForState = checked;
+        } else {
+            const numValue = parseFloat(value);
+            if (isNaN(numValue)) {
+                finalValueForState = 0;
+            } else {
+                finalValueForState = numValue;
+            }
+        }
+
+        if (typeof name === 'string' && name.includes('.')) {
             const [group, key] = name.split('.');
             updatedModifiers[group] = {
-                ...updatedModifiers[group],
-                [key]: type === 'checkbox' ? checked : Number(value),
+                ...(updatedModifiers[group] || {}),
+                [key]: finalValueForState,
             };
         } else {
-            updatedModifiers[name] = type === 'checkbox' ? checked : Number(value);
+            updatedModifiers[name] = finalValueForState;
         }
 
         onModifierChange(instance.id, updatedModifiers);

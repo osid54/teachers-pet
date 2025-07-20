@@ -24,8 +24,7 @@ export default function Button({
     type = 'button',
     ...rest
 }) {
-    const buttonClasses = `${styles.button} ${styles[variant]} ${className} ${isLoading ? styles.loading : ''
-        }`;
+    const buttonClasses = `${styles.button} ${styles[variant]} ${className} ${isLoading ? styles.loading : ''}`;
 
     return (
         <button

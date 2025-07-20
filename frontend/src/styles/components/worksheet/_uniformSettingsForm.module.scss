@@ -17,6 +17,18 @@
     grid-template-columns: 1fr;
     gap: $spacing-sm;
   }
+
+  &.multi {
+    grid-template-columns: repeat(4, 1fr);
+
+    @include breakpoint-md {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    @include breakpoint-sm {
+      grid-template-columns: 1fr;
+    }
+  }
 }
 
 .inputField, .checkboxField {

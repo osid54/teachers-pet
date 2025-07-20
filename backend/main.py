@@ -1,7 +1,8 @@
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from typing import Optional, List 
 import io
 
 from problem_generator.operations import generate_arithmetic_problems
@@ -43,6 +44,7 @@ class SectionRequest(BaseModel):
     include_answer_key: bool = Field(False, description="Whether to include an answer key for this section.")
     problems_per_page: int = Field(10, gt=0, description="Number of problems per page for this section.")
     modifiers: dict = Field({}, description="Dictionary of specific modifiers for this section's problem generation.")
+    mixed_problems_data: Optional[list[dict]] = Field(None, description="Pre-generated, mixed problem data for a mixed worksheet.")
 
 
 @app.get("/")
@@ -52,47 +54,93 @@ async def root():
     """
     return {"message": "Teacher's Pet API is running!"}
 
+@app.post("/get-problems", response_model=List[dict])
+async def get_problems_endpoint(request_data: SectionRequest):
+    """
+    Generates and returns a list of raw problem dictionaries based on the request, without creating a PDF.
+    """
+    subject = request_data.subject
+    topic_ids = request_data.topic
+    total_problems = request_data.page_count * request_data.problems_per_page
+    modifiers = request_data.modifiers
+
+    problems_objects = []
+    try:
+        if subject == 'Arithmetic':
+            problems_objects = generate_arithmetic_problems(
+                topic_ids,
+                total_problems,
+                modifiers
+            )
+        else:
+            raise HTTPException(status_code=400, detail=f"Subject '{subject}' not supported for problem generation.")
+
+        problems_data = [p.to_dict() for p in problems_objects]
+        return JSONResponse(content=problems_data)
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate raw problems: {str(e)}")
+
 @app.post("/generate-worksheet")
 async def generate_worksheet_endpoint(requests_list: list[SectionRequest]):
     """
     Generates a customized math worksheet as a PDF from multiple sections.
+    Can handle pre-mixed problems from the frontend.
     """
+
     all_problems_data_for_pdf = []
     overall_include_answer_key = False
 
     for request_data in requests_list:
-        subject = request_data.subject
-        topic_ids = request_data.topic
-        page_count = request_data.page_count
-        include_answer_key = request_data.include_answer_key
-        modifiers = request_data.modifiers
-        problems_per_page = request_data.problems_per_page
+        if request_data.topic == ["mixed"] and request_data.mixed_problems_data is not None:
+            section_subject = request_data.subject
+            section_topic_name = "Mixed Problems"
+            problems_for_section = request_data.mixed_problems_data
 
-        total_problems_for_section = page_count * problems_per_page
+            all_problems_data_for_pdf.append({
+                "type": "section_header",
+                "subject": section_subject,
+                "topic_name": section_topic_name,
+                "page_count": request_data.page_count,
+                "problems_per_page": request_data.problems_per_page,
+                "modifiers": request_data.modifiers
+            })
+            all_problems_data_for_pdf.extend(problems_for_section)
 
-        problems_objects_for_section = []
-        if subject == 'Arithmetic':
-            problems_objects_for_section = generate_arithmetic_problems(
-                topic_ids,
-                total_problems_for_section,
-                modifiers
-            )
         else:
-            raise HTTPException(status_code=400, detail=f"Subject '{subject}' not supported.")
+            subject = request_data.subject
+            topic_ids = request_data.topic
+            page_count = request_data.page_count
+            modifiers = request_data.modifiers
+            problems_per_page = request_data.problems_per_page
 
-        section_problems_data = [p.to_dict() for p in problems_objects_for_section]
-        
-        all_problems_data_for_pdf.append({
-            "type": "section_header",
-            "subject": subject,
-            "topic_name": ", ".join(topic_id.capitalize() for topic_id in topic_ids),
-            "page_count": page_count,
-            "problems_per_page": problems_per_page,
-            "modifiers": modifiers
-        })
-        all_problems_data_for_pdf.extend(section_problems_data)
+            total_problems_for_section = page_count * problems_per_page
 
-        if include_answer_key:
+            problems_objects_for_section = []
+            if subject == 'Arithmetic':
+                problems_objects_for_section = generate_arithmetic_problems(
+                    topic_ids,
+                    total_problems_for_section,
+                    modifiers
+                )
+            else:
+                raise HTTPException(status_code=400, detail=f"Subject '{subject}' not supported.")
+
+            section_problems_data = [p.to_dict() for p in problems_objects_for_section]
+
+            all_problems_data_for_pdf.append({
+                "type": "section_header",
+                "subject": subject,
+                "topic_name": ", ".join(t.capitalize() for t in topic_ids),
+                "page_count": page_count,
+                "problems_per_page": problems_per_page,
+                "modifiers": modifiers
+            })
+            all_problems_data_for_pdf.extend(section_problems_data)
+
+        if request_data.include_answer_key:
             overall_include_answer_key = True
 
     try:

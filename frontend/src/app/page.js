@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useBackendStatus } from '@/hooks/useBackendStatus';
 import { useGenerateWorksheet } from '@/hooks/useGenerateWorksheet';
+import { fetchProblemsList } from '@/services/worksheetApi';
 import { curriculumData } from '@/lib/curriculum';
 
 import SubjectHeader from '@/components/worksheet/SubjectHeader';
@@ -30,6 +31,7 @@ export default function HomePage() {
     pageCount: 1,
     problemsPerPage: 10,
     includeAnswerKey: true,
+    mixedProblems: false,
   });
 
   const getDefaultModifiersForTopic = (topicId) => {
@@ -108,23 +110,74 @@ export default function HomePage() {
     });
   };
 
-  const handleGenerateButtonClick = (uniformSettings) => {
+  const handleGenerateButtonClick = async (uniformSettingsFromSidebar) => {
     if (selectedTopicInstances.length === 0) {
       console.warn("Please select at least one topic to generate.");
       return;
     }
+    let finalGenerationRequest = {}; 
 
-    const generationRequests = selectedTopicInstances.map(instance => ({
-      subject: instance.subject,
-      topic: [instance.topicId],
-      page_count: uniformSettings.pageCount,
-      include_answer_key: uniformSettings.includeAnswerKey,
-      problems_per_page: uniformSettings.problemsPerPage,
-      modifiers: instance.modifiers,
-    }));
+    if (uniformSettingsFromSidebar.mixedProblems) {
+      let allProblemsToMix = [];
+      const totalProblemsPerMixedWorksheet = uniformSettingsFromSidebar.pageCount * uniformSettingsFromSidebar.problemsPerPage;
 
-    console.log("Generating with requests:", generationRequests);
-    generate(generationRequests);
+      const problemsPerTopicInstance = Math.ceil(totalProblemsPerMixedWorksheet / selectedTopicInstances.length);
+
+
+      for (const instance of selectedTopicInstances) {
+        const problemRequest = {
+          subject: instance.subject,
+          topic: [instance.topicId],
+          page_count: 1,
+          problems_per_page: problemsPerTopicInstance,
+          include_answer_key: false,
+          modifiers: instance.modifiers,
+        };
+
+        try {
+          const problemsFromInstance = await fetchProblemsList(problemRequest);
+          allProblemsToMix.push(...problemsFromInstance);
+        } catch (error) {
+          console.error(`Failed to get problems for ${instance.topicName}:`, error);
+          throw new Error(`Failed to get problems for ${instance.topicName}.`);
+        }
+      }
+
+      for (let i = allProblemsToMix.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [allProblemsToMix[i], allProblemsToMix[j]] = [allProblemsToMix[j], allProblemsToMix[i]];
+      }
+
+      if (allProblemsToMix.length > totalProblemsPerMixedWorksheet) {
+        allProblemsToMix = allProblemsToMix.slice(0, totalProblemsPerMixedWorksheet);
+      } else if (allProblemsToMix.length < totalProblemsPerMixedWorksheet) {
+        console.warn(`Not enough problems generated (${allProblemsToMix.length}) for desired total (${totalProblemsPerMixedWorksheet}).`);
+      }
+
+      finalGenerationRequest = {
+        subject: selectedTopicInstances[0].subject, 
+        topic: ["mixed"],
+        page_count: uniformSettingsFromSidebar.pageCount,
+        include_answer_key: uniformSettingsFromSidebar.includeAnswerKey,
+        problems_per_page: uniformSettingsFromSidebar.problemsPerPage,
+        mixed_problems_data: allProblemsToMix,
+        modifiers: {}
+      };
+
+      generate([finalGenerationRequest]); 
+
+    } else {
+      finalGenerationRequest = selectedTopicInstances.map(instance => ({
+        subject: instance.subject,
+        topic: [instance.topicId],
+        page_count: uniformSettingsFromSidebar.pageCount,
+        include_answer_key: uniformSettingsFromSidebar.includeAnswerKey,
+        problems_per_page: uniformSettingsFromSidebar.problemsPerPage,
+        modifiers: instance.modifiers,
+      }));
+
+      generate(finalGenerationRequest);
+    }
   };
 
   return (

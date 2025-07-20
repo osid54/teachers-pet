@@ -19,6 +19,25 @@ export const fetchBackendStatus = async () => {
   }
 };
 
+export const fetchProblemsList = async (requestData) => {
+  try {
+    const response = await api.post('/get-problems', requestData);
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching raw problems:", error.response?.data || error.message);
+    if (error.response && error.response.data) {
+      const errorText = await new Blob([error.response.data]).text();
+      try {
+        const errorJson = JSON.parse(errorText);
+        throw new Error(errorJson.detail || "Unknown error fetching problems.");
+      } catch (parseError) {
+        throw new Error(errorText || "Unknown error fetching problems.");
+      }
+    }
+    throw new Error('Failed to fetch problems due to network or server error.');
+  }
+};
+
 export const generateWorksheetPDF = async (generationRequests) => {
   try {
     const response = await api.post('/generate-worksheet', generationRequests, {
