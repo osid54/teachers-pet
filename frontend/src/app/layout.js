@@ -1,8 +1,11 @@
 import '@/styles/globals.scss';
 
-import Navbar from '@/components/layout/Navbar';
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
+
+import { AuthProvider } from '@/context/AuthContext';
+
+import Navbar from '@/components/layout/Navbar';
 
 export const metadata = {
   title: "Teacher's Pet",
@@ -13,12 +16,14 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        <Navbar />
-        <main className="app-content">
-          {children}
-        </main>
-        <Analytics/>
-        <SpeedInsights/>
+        <AuthProvider>
+          <Navbar />
+          <main className="app-content">
+            {children}
+          </main>
+        </AuthProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

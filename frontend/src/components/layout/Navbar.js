@@ -33,18 +33,13 @@ export default function Navbar() {
                             </Link>
                         </li>
                         <li>
+                            <Link href="/templates" className={styles.navItem}>
+                                Templates
+                            </Link>
+                        </li>
+                        <li>
                             <Link href="/about" className={styles.navItem}>
                                 About
-                            </Link>
-                        </li>
-                        <li>
-                            <Link href="/contact" className={styles.navItem}>
-                                Contact
-                            </Link>
-                        </li>
-                        <li>
-                            <Link href="/account" className={styles.navItem}>
-                                Account
                             </Link>
                         </li>
                     </ul>

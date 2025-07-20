@@ -1,0 +1,60 @@
+@import '@/styles/variables';
+@import '@/styles/mixins';
+
+.authFormContainer {
+    @include card-styles();
+    padding: $spacing-xl;
+    margin-bottom: $spacing-xxl;
+    display: flex;
+    margin-top: auto;
+    margin-bottom: auto; 
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+}
+
+.authFormTitle {
+    font-size: $font-size-h3;
+    color: $color-main-600;
+    margin-bottom: 0;
+}
+
+.form {
+    display: flex;
+    flex-direction: row;
+    gap: $spacing-md;
+}
+
+.inputField {
+    margin-bottom: 0;
+}
+
+.errorMessage {
+    color: $color-main-600;
+    font-size: $font-size-sm;
+    margin-top: $spacing-xs;
+    margin-bottom: $spacing-md;
+}
+
+.submitButton {
+    margin-top: 0;
+}
+
+.toggleFormLink {
+    font-size: $font-size-sm;
+    color: $color-main-400;
+    margin-top: 0;
+
+    button {
+        @include button-reset;
+        color: $color-main-600;
+        text-decoration: underline;
+        font-weight: 500;
+        font-size: inherit;
+
+        &:hover {
+            color: $color-main-500;
+            text-decoration: none;
+        }
+    }
+}
