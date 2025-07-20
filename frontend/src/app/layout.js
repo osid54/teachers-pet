@@ -3,7 +3,7 @@ import '@/styles/globals.scss';
 import Navbar from '@/components/layout/Navbar';
 
 export const metadata = {
-  title: "Teacher's Pet",
+  title: "Teacher&apos;s Pet",
   description: "A simple worksheet generator for teachers",
 };
 

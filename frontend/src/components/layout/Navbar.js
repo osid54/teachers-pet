@@ -20,7 +20,7 @@ export default function Navbar() {
                     </Link>
                     
                     <Link href="/" className={styles.logoText}>
-                        <span className={styles.desktopText}>Teacher's Pet</span>
+                        <span className={styles.desktopText}>Teacher&apos;s Pet</span>
                         <span className={styles.mobileText}>TP</span>
                     </Link>
                 </div>

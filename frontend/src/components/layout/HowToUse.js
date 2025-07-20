@@ -39,7 +39,7 @@ export default function HowToUse() {
     return (
         <div className={styles.howToUseSection}>
             <div className={styles.header}>
-                <h2 className={styles.title}>How to Use Teacher's Pet</h2>
+                <h2 className={styles.title}>How to Use Teacher&apos;s Pet</h2>
                 <Button onClick={toggleOpen} variant="primary" className={styles.toggleButton}>
                     {isOpen ? '▲' : '▼'}
                 </Button>
@@ -47,11 +47,11 @@ export default function HowToUse() {
 
             <div className={`${styles.content} ${isOpen ? styles.open : styles.collapsed}`}>
                 <p>
-                    Welcome to Teacher's Pet, a free site to create custom math worksheets for your students! Whether you're a teacher, parent, tutor, or student, Teacher's Pet is designed to make worksheet creation easy and efficient.
+                    Welcome to Teacher&apos;s Pet, a free site to create custom math worksheets for your students! Whether you're a teacher, parent, tutor, or student, Teacher&apos;s Pet is designed to make worksheet creation easy and efficient.
                 </p>
                 <ol>
                     <li>
-                       Teacher's Pet allows you to create workssheets for single or multiple topics.
+                       Teacher&apos;s Pet allows you to create workssheets for single or multiple topics.
                     </li>
                     <li>
                         The topic(s) you select will appear in the sidebar to the right.
