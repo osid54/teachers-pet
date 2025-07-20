@@ -1,0 +1,25 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "startCommand": "uvicorn main:app --host 0.0.0.0 --port $PORT",
+    "healthcheckPath": "/",
+    "healthcheckTimeout": 300,
+    "buildCommand": "pip install -r requirements.txt"
+  },
+  "builds": [
+    {
+      "name": "fastapi-backend",
+      "buildCommand": "pip install -r requirements.txt",
+      "startCommand": "uvicorn main:app --host 0.0.0.0 --port $PORT",
+      "rootDirectory": "./"
+    }
+  ],
+  "build_and_deploy": {
+    "web": {
+      "preDeployHook": "alembic upgrade head"
+    }
+  }
+}
