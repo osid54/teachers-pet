@@ -47,28 +47,20 @@ export default function HowToUse() {
 
             <div className={`${styles.content} ${isOpen ? styles.open : styles.collapsed}`}>
                 <p>
-                    Welcome to Teacher's Pet! Generate custom worksheets for various math topics.
+                    Welcome to Teacher's Pet, a free site to create custom math worksheets for your students! Whether you're a teacher, parent, tutor, or student, Teacher's Pet is designed to make worksheet creation easy and efficient.
                 </p>
                 <ol>
                     <li>
-                        **Select a Topic:** Browse the grid below and click on a problem type card (e.g., "Addition").
+                       Teacher's Pet allows you to create workssheets for single or multiple topics.
                     </li>
                     <li>
-                        **Choose Your Mode:** Use the "Single Topic" or "Multi Topic" buttons to decide how you want to build your worksheet.
-                        <ul>
-                            <li>
-                                **Single Topic:** Selects one problem type. The sidebar will show modifiers for *only that topic*. Clicking another card replaces the selection.
-                            </li>
-                            <li>
-                                **Multi Topic:** Allows you to add multiple problem types (even the same type with different settings!) to a list in the sidebar. Clicking a card *adds* it. Use the "+" button in the sidebar to add another instance of a topic.
-                            </li>
-                        </ul>
+                        The topic(s) you select will appear in the sidebar to the right.
                     </li>
                     <li>
-                        **Customize Settings:** Use the sidebar to set global options (like page count, answer key) and specific modifiers for each selected topic instance.
+                        From there, you can modify general settings, such as the amount of questions, pages, and if there should be an answer key.
                     </li>
                     <li>
-                        **Generate:** Click the floating "Generate Worksheet" button at the bottom to create your PDF!
+                        You can also modify topic-specific settings, like the types of numbers that are used, in the list below the general settings.
                     </li>
                 </ol>
                 <p>
