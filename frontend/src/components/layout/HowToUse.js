@@ -47,7 +47,7 @@ export default function HowToUse() {
 
             <div className={`${styles.content} ${isOpen ? styles.open : styles.collapsed}`}>
                 <p>
-                    Welcome to Teacher&apos;s Pet, a free site to create custom math worksheets for your students! Whether you're a teacher, parent, tutor, or student, Teacher&apos;s Pet is designed to make worksheet creation easy and efficient.
+                    Welcome to Teacher&apos;s Pet, a free site to create custom math worksheets for your students! Whether you&apos;re a teacher, parent, tutor, or student, Teacher&apos;s Pet is designed to make worksheet creation easy and efficient.
                 </p>
                 <ol>
                     <li>
