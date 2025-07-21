@@ -52,7 +52,7 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    url = DATABASE_URL.replace("postgresql+psycopg://", "postgresql+psycopg_async://")
+    url = DATABASE_URL.replace("postgresql+psycopg://", "postgresql+asyncpg://")
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -80,7 +80,7 @@ async def run_migrations_online():
             config.get_section(config.config_ini_section, {}),
             prefix="sqlalchemy.",
             poolclass=pool.NullPool,
-            url = DATABASE_URL.replace("postgresql+psycopg://", "postgresql+psycopg_async://")
+            url=DATABASE_URL.replace("postgresql+psycopg://", "postgresql+asyncpg://")
         )
     )
 
