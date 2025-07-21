@@ -8,10 +8,14 @@ sys.path.append(str(backend_path))
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from models import Base
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://teacherspetuser:teacherspetsecretpassword@localhost/teachers_pet_db")
+raw_url = os.getenv("DATABASE_URL", "postgresql+asyncpg://teacherspetuser:teacherspetsecretpassword@localhost/teachers_pet_db")
+
+if raw_url.startswith("postgresql://"):
+    raw_url = raw_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+DATABASE_URL = raw_url
 
 engine = create_async_engine(DATABASE_URL, echo=True)
-print(f"SQLAlchemy engine created with dialect: {engine.dialect}")
 
 AsyncSessionLocal = async_sessionmaker(
     autocommit=False,
