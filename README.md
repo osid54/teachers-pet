@@ -96,7 +96,7 @@ Before you begin, ensure you have the following installed:
 
 1.  **Clone the Repository:**
     ```bash
-    git clone [https://github.com/your-username/teachers-pet.git](https://github.com/your-username/teachers-pet.git)
+    git clone [https://github.com/osid54/teachers-pet.git](https://github.com/osid54/teachers-pet.git)
     cd teachers-pet
     ```
 
