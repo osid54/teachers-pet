@@ -1,17 +1,20 @@
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Query, Request, Security
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, List
-import io
-import os
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import func
+from sqlalchemy.orm import joinedload
+from sqlalchemy import and_, Table
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm 
 from jose import JWTError, jwt
 
+import io
+import os
 import sys
 from pathlib import Path
 
@@ -19,7 +22,7 @@ backend_path = Path(__file__).parent
 sys.path.append(str(backend_path))  
 
 from database import get_db
-from models import User, Template
+from models import User, Template, user_likes_template, user_favorites_template
 from problem_generator.operations import generate_arithmetic_problems
 from pdf_generator.main import create_pdf_worksheet
 
@@ -99,7 +102,6 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True 
 
-
 class ProblemModifiers(BaseModel):
     digits: int = Field(1, gt=0)
     dec: int = Field(0, ge=0)
@@ -123,7 +125,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-super-secret-key-that-should-be-at-le
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
 def create_access_token(data: dict, expires_delta: Optional[int] = None):
     to_encode = data.copy()
@@ -142,7 +144,7 @@ async def get_user_from_db(db: AsyncSession, username: str):
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db)
-):
+) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -156,9 +158,65 @@ async def get_current_user(
         user = await get_user_from_db(db, username=username)
         if user is None:
             raise credentials_exception
-    except JWTError:
+        return user
+    except JWTError as e:
         raise credentials_exception
-    return user
+    except Exception as e:
+        raise credentials_exception
+
+async def get_optional_current_user(
+    token: Optional[str] = Depends(oauth2_scheme),
+    db: AsyncSession = Depends(get_db)
+) -> Optional[User]:
+    if token is None:
+        return None
+
+    try:
+        user = await get_current_user(token=token, db=db)
+        return user
+    except HTTPException as e:
+        return None
+    except Exception as e:
+        return None
+    
+async def _handle_template_action(
+    template_id: int,
+    current_user: User,
+    db: AsyncSession,
+    action_table: Table,
+    action_type: str
+):
+    template_result = await db.execute(select(Template).filter(Template.id == template_id))
+    template = template_result.scalar_one_or_none()
+
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+
+    user_action_exists = await db.scalar(
+        select(action_table).filter(
+            and_(action_table.c.user_id == current_user.id, action_table.c.template_id == template_id)
+        )
+    )
+
+    if user_action_exists:
+        await db.execute(
+            action_table.delete().where(
+                and_(action_table.c.user_id == current_user.id, action_table.c.template_id == template_id)
+            )
+        )
+        if action_type == "like":
+            template.likes_count = max(0, template.likes_count - 1)
+        await db.commit()
+        await db.refresh(template)
+        return {"message": f"Template un{action_type}d successfully", "likes_count": template.likes_count}
+    else:
+        insert_stmt = action_table.insert().values(user_id=current_user.id, template_id=template_id)
+        await db.execute(insert_stmt)
+        if action_type == "like":
+            template.likes_count += 1
+        await db.commit()
+        await db.refresh(template)
+        return {"message": f"Template {action_type}d successfully", "likes_count": template.likes_count}
 
 @app.get("/")
 async def root():
@@ -235,6 +293,96 @@ async def get_my_templates(
     my_templates = result.scalars().all()
     return [TemplateResponse.from_orm_with_owner(t, current_user) for t in my_templates]
 
+@app.get("/templates/public", response_model=List[TemplateResponse])
+async def get_public_templates(
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
+    q: Optional[str] = Query(None, description="Search query for template name or description"),
+    tags: Optional[List[str]] = Query(None, description="Filter by list of tags"),
+    sort_by: str = Query("created_at", regex="^(created_at|likes_count)$"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$"),
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Security(get_optional_current_user)
+):
+    print(f"[API] /templates/public: current_user = {current_user.username if current_user else 'None'}")
+  
+    query = select(Template).options(joinedload(Template.owner)).filter(Template.is_public == True)
+
+    if q:
+        search_pattern = f"%{q.lower()}%"
+        query = query.filter(
+            (func.lower(Template.name).like(search_pattern)) |
+            (func.lower(Template.description).like(search_pattern))
+        )
+
+    if tags:
+        for tag in tags:
+            query = query.filter(Template.tags.contains([tag]))
+
+    if sort_by == "created_at":
+        if sort_order == "desc":
+            query = query.order_by(Template.created_at.desc())
+        else:
+            query = query.order_by(Template.created_at.asc())
+    elif sort_by == "likes_count":
+        if sort_order == "desc":
+            query = query.order_by(Template.likes_count.desc())
+        else:
+            query = query.order_by(Template.likes_count.asc())
+
+    query = query.offset(skip).limit(limit)
+
+    result = await db.execute(query)
+    public_templates = result.scalars().all()
+
+    return [
+        TemplateResponse.from_orm_with_owner(t, t.owner) for t in public_templates
+    ]
+
+@app.get("/templates/saved", response_model=List[TemplateResponse])
+async def get_saved_templates(
+    current_user: User = Depends(get_current_user),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(10, ge=1, le=100),
+    q: Optional[str] = Query(None, description="Search query for template name or description"),
+    tags: Optional[List[str]] = Query(None, description="Filter by list of tags"),
+    sort_by: str = Query("created_at", regex="^(created_at|likes_count)$"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$"),
+    db: AsyncSession = Depends(get_db)
+):
+    query = select(Template).join(user_favorites_template).filter(
+        user_favorites_template.c.user_id == current_user.id
+    ).options(joinedload(Template.owner))
+
+    if q:
+        search_pattern = f"%{q.lower()}%"
+        query = query.filter(
+            (func.lower(Template.name).like(search_pattern)) |
+            (func.lower(Template.description).like(search_pattern))
+        )
+    if tags:
+        for tag in tags:
+            query = query.filter(Template.tags.contains([tag]))
+
+    if sort_by == "created_at":
+        if sort_order == "desc":
+            query = query.order_by(Template.created_at.desc())
+        else:
+            query = query.order_by(Template.created_at.asc())
+    elif sort_by == "likes_count":
+        if sort_order == "desc":
+            query = query.order_by(Template.likes_count.desc())
+        else:
+            query = query.order_by(Template.likes_count.asc())
+
+    query = query.offset(skip).limit(limit)
+
+    result = await db.execute(query)
+    saved_templates = result.scalars().all()
+
+    return [
+        TemplateResponse.from_orm_with_owner(t, t.owner) for t in saved_templates
+    ]
 
 @app.get("/templates/{template_id}", response_model=TemplateResponse)
 async def get_template_by_id(
@@ -335,6 +483,25 @@ async def delete_template(
     await db.delete(db_template)
     await db.commit()
     return 
+
+
+@app.post("/templates/{template_id}/like", response_model=dict)
+async def like_template(
+    template_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    return await _handle_template_action(template_id, current_user, db, user_likes_template, "like")
+
+
+@app.post("/templates/{template_id}/favorite", response_model=dict)
+async def favorite_template(
+    template_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    return await _handle_template_action(template_id, current_user, db, user_favorites_template, "favorite")
+
 
 @app.post("/get-problems", response_model=List[dict])
 async def get_problems_endpoint(request_data: SectionRequest):

@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Input, Checkbox, Button } from '@/components/ui';
 import styles from '@/styles/components/worksheet/_saveTemplateForm.module.scss';
-
-const PREDEFINED_TAGS = ['Arithmetic', 'Algebra', 'Geometry', 'Easy', 'Medium', 'Hard', 'Mixed', 'Standard'];
+import { PREDEFINED_TAGS } from '@/lib/constants';
 
 /*
  * @param {object} props - Component props.

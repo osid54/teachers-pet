@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Button, Input } from '@/components/ui';
+import { Button, Input, Checkbox } from '@/components/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -10,6 +10,8 @@ import styles from '@/styles/pages/_templates.module.scss';
 import authFormStyles from '@/styles/components/ui/_authForms.module.scss';
 
 import TemplateListGrid from '@/components/templates/TemplateListGrid';
+
+import { PREDEFINED_TAGS } from '@/lib/constants';
 
 export default function TemplatesPage() {
     const {
@@ -41,11 +43,18 @@ export default function TemplatesPage() {
     const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
     const [templatesError, setTemplatesError] = useState(null);
 
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedTags, setSelectedTags] = useState([]);
+    const [sortBy, setSortBy] = useState('created_at');
+    const [sortOrder, setSortOrder] = useState('desc');
+    const [currentPage, setCurrentPage] = useState(0);
+    const templatesPerPage = 10;
+
     useEffect(() => {
         setIsMounted(true);
     }, [isLoggedIn]);
 
-    const fetchTemplates = async () => {
+    const fetchTemplates = useCallback(async () => {
         if (!isMounted || authLoading || !authApi) {
             return;
         }
@@ -56,7 +65,15 @@ export default function TemplatesPage() {
         try {
             let response;
             if (activeTab === 'public') {
-                response = await authApi.get('/templates/public');
+                const params = {
+                    skip: currentPage * templatesPerPage,
+                    limit: templatesPerPage,
+                    q: searchQuery || undefined,
+                    tags: selectedTags.length > 0 ? selectedTags : undefined,
+                    sort_by: sortBy,
+                    sort_order: sortOrder,
+                };
+                response = await authApi.get('/templates/public', { params });
                 setPublicTemplates(response.data);
             } else if (activeTab === 'my' && isLoggedIn) {
                 response = await authApi.get('/templates/me');
@@ -74,13 +91,11 @@ export default function TemplatesPage() {
         } finally {
             setIsLoadingTemplates(false);
         }
-    };
+    }, [activeTab, isLoggedIn, isMounted, authLoading, authApi, currentPage, searchQuery, selectedTags, sortBy, sortOrder]);
 
     useEffect(() => {
-        if (isMounted && !authLoading && authApi) {
-            fetchTemplates();
-        }
-    }, [activeTab, isLoggedIn, isMounted, authLoading, authApi]); 
+        fetchTemplates();
+    }, [fetchTemplates]);
 
     const handleUseTemplate = (template) => {
         if (typeof window !== 'undefined') {
@@ -92,6 +107,69 @@ export default function TemplatesPage() {
     const handleEditTemplate = (templateId) => {
         router.push(`/?templateId=${templateId}`);
     };
+
+    const handleLikeTemplate = async (templateId) => {
+        if (!isLoggedIn) {
+            alert("Please log in to like templates.");
+            return;
+        }
+        try {
+            const response = await authApi.post(`/templates/${templateId}/like`);
+            if (activeTab === 'public') {
+                setPublicTemplates(prev => prev.map(t =>
+                    t.id === templateId ? { ...t, likes_count: response.data.likes_count } : t
+                ));
+            } else if (activeTab === 'my') {
+                setMyTemplates(prev => prev.map(t =>
+                    t.id === templateId ? { ...t, likes_count: response.data.likes_count } : t
+                ));
+            }
+        } catch (err) {
+            console.error("Failed to like template:", err.response?.data || err.message);
+            alert("Failed to like template. " + (err.response?.data?.detail || ""));
+        }
+    };
+
+    const handleFavoriteTemplate = async (templateId) => {
+        if (!isLoggedIn) {
+            alert("Please log in to favorite templates.");
+            return;
+        }
+        try {
+            const response = await authApi.post(`/templates/${templateId}/favorite`);
+            alert(response.data.message);
+            if (activeTab === 'saved') {
+                fetchTemplates();
+            }
+        } catch (err) {
+            console.error("Failed to favorite template:", err.response?.data || err.message);
+            alert("Failed to favorite template. " + (err.response?.data?.detail || ""));
+        }
+    };
+
+    const handleDeleteTemplate = async (templateId) => {
+        if (!isLoggedIn) {
+            alert("Please log in to delete templates.");
+            return;
+        }
+        try {
+            await authApi.delete(`/templates/${templateId}`);
+            alert("Template deleted successfully!"); // Or a toast
+            if (activeTab === 'my') {
+                setMyTemplates(prev => prev.filter(t => t.id !== templateId));
+            }
+            setPublicTemplates(prev => prev.filter(t => t.id !== templateId));
+        } catch (err) {
+            console.error("Failed to delete template:", err.response?.data || err.message);
+            alert("Failed to delete template. " + (err.response?.data?.detail || ""));
+        }
+    };
+
+    useEffect(() => {
+        if (isMounted && !authLoading && authApi) {
+            fetchTemplates();
+        }
+    }, [activeTab, isLoggedIn, isMounted, authLoading, authApi]); 
 
     const handleLoginSubmit = async (e) => {
         e.preventDefault();
@@ -226,18 +304,77 @@ export default function TemplatesPage() {
                             </form>
                         </div>
                     )}
-                    {!showLoginForm && !showRegisterForm && (
+                    {(!showLoginForm && !showRegisterForm) && (
                         <section className={styles.templateSection}>
                             <h2 className={styles.sectionTitle}>Public Templates</h2>
+                            <div className={styles.filterSection}>
+                                <Input
+                                    label="Search"
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(0); }}
+                                    placeholder="Search by name or description..."
+                                    labelPosition="top"
+                                    className={styles.searchInput}
+                                />
+
+                                <div className={styles.tagFilters}>
+                                    <h3 className={styles.filterTitle}>Filter by Tags:</h3>
+                                    <div className={styles.tagCheckboxes}>
+                                        {PREDEFINED_TAGS.map(tag => (
+                                            <Checkbox
+                                                key={tag}
+                                                label={tag}
+                                                checked={selectedTags.includes(tag)}
+                                                onChange={(e) => {
+                                                    const isChecked = e.target.checked;
+                                                    setSelectedTags(prev =>
+                                                        isChecked ? [...prev, tag] : prev.filter(t => t !== tag)
+                                                    );
+                                                    setCurrentPage(0);
+                                                }}
+                                                labelPosition="inline"
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className={styles.sortOptions}>
+                                    <h3 className={styles.filterTitle}>Sort By:</h3>
+                                    <select
+                                        className={styles.sortSelect}
+                                        value={sortBy}
+                                        onChange={(e) => { setSortBy(e.target.value); setCurrentPage(0); }}
+                                    >
+                                        <option value="created_at">Date Created</option>
+                                        <option value="likes_count">Likes</option>
+                                    </select>
+                                    <select
+                                        className={styles.sortSelect}
+                                        value={sortOrder}
+                                        onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(0); }}
+                                    >
+                                        <option value="desc">Descending</option>
+                                        <option value="asc">Ascending</option>
+                                    </select>
+                                </div>
+                            </div>
+
                             <TemplateListGrid
                                 templates={publicTemplates}
                                 isLoading={isLoadingTemplates}
-                                emptyMessage="No public templates found."
+                                emptyMessage={searchQuery || selectedTags.length > 0 ? "No templates match your search." : "No public templates found."}
                                 loadingMessage="Loading public templates..."
                                 authContext={{ user: null, isLoggedIn: false }}
                                 onUse={handleUseTemplate}
                                 onEdit={handleEditTemplate}
+                                onLike={handleLikeTemplate}
+                                onFavorite={handleFavoriteTemplate}
                             />
+                            <div className={styles.pagination}>
+                                <Button onClick={() => setCurrentPage(prev => prev - 1)} disabled={currentPage === 0}>Previous</Button>
+                                <Button onClick={() => setCurrentPage(prev => prev + 1)} disabled={publicTemplates.length < templatesPerPage}>Next</Button>
+                            </div>
                         </section>
                     )}
                 </div>
@@ -265,66 +402,89 @@ export default function TemplatesPage() {
                         Saved Templates
                     </Button>
                     <Link href="/" passHref legacyBehavior>
-                        <Button as="a" variant="secondary" className={styles.createTemplateButton}>
+                        <Button as="a" variant="accent" className={styles.createTemplateButton}>
                             Create New Template
                         </Button>
                     </Link>
-                    <Button
-                        onClick={logout}
-                        variant="secondary"
-                        className={styles.tabButton}
-                    >
+                    <Button onClick={logout} variant="danger" className={styles.tabButton}>
                         Logout
                     </Button>
                 </div>
             )}
 
-            <div className={styles.templateDisplayArea}>
-                {(!isLoggedIn && !showLoginForm && !showRegisterForm) || isLoggedIn && activeTab === 'public' && (
-                    <section className={styles.templateSection}>
-                        <h2 className={styles.sectionTitle}>Public Templates</h2>
-                        <TemplateListGrid
-                            templates={publicTemplates}
-                            isLoading={isLoadingTemplates}
-                            emptyMessage="No public templates found."
-                            loadingMessage="Loading public templates..."
-                            authContext={{ user: isLoggedIn ? user : null, isLoggedIn: isLoggedIn }}
-                            onUse={handleUseTemplate}
-                            onEdit={handleEditTemplate}
-                        />
-                    </section>
-                )}
+            {isLoggedIn && (
+                <div className={styles.templateDisplayArea}>
+                    {activeTab === 'public' && (
+                        <section className={styles.templateSection}>
+                            <h2 className={styles.sectionTitle}>Public Templates</h2>
+                            <div className={styles.filterSection}>
+                                <Input label="Search" type="text" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(0); }} placeholder="Search by name or description..." labelPosition="top" className={styles.searchInput} />
+                                <div className={styles.tagFilters}>
+                                    <h3 className={styles.filterTitle}>Filter by Tags:</h3>
+                                    <div className={styles.tagCheckboxes}>{PREDEFINED_TAGS.map(tag => (<Checkbox key={tag} label={tag} checked={selectedTags.includes(tag)} onChange={(e) => { const isChecked = e.target.checked; setSelectedTags(prev => isChecked ? [...prev, tag] : prev.filter(t => t !== tag)); setCurrentPage(0); }} labelPosition="inline" />))}</div>
+                                </div>
+                                <div className={styles.sortOptions}>
+                                    <h3 className={styles.filterTitle}>Sort By:</h3>
+                                    <select className={styles.sortSelect} value={sortBy} onChange={(e) => { setSortBy(e.target.value); setCurrentPage(0); }}><option value="created_at">Date Created</option><option value="likes_count">Likes</option></select>
+                                    <select className={styles.sortSelect} value={sortOrder} onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(0); }}><option value="desc">Descending</option><option value="asc">Ascending</option></select>
+                                </div>
+                            </div>
+                            <TemplateListGrid 
+                                templates={publicTemplates} 
+                                isLoading={isLoadingTemplates} 
+                                emptyMessage={searchQuery || selectedTags.length > 0 ? "No templates match your search." : "No public templates found yet."} 
+                                loadingMessage="Loading public templates..." 
+                                authContext={{ user, isLoggedIn }} 
+                                onUse={handleUseTemplate} 
+                                onEdit={handleEditTemplate}
+                                onDelete={handleDeleteTemplate} 
+                                onLike={handleLikeTemplate} 
+                                onFavorite={handleFavoriteTemplate} 
+                            />
+                            <div className={styles.pagination}>
+                                <Button onClick={() => setCurrentPage(prev => prev - 1)} disabled={currentPage === 0}>Previous</Button>
+                                <Button onClick={() => setCurrentPage(prev => prev + 1)} disabled={publicTemplates.length < templatesPerPage}>Next</Button>
+                            </div>
+                        </section>
+                    )}
 
-                {isLoggedIn && activeTab === 'my' && (
-                    <section className={styles.templateSection}>
-                        <h2 className={styles.sectionTitle}>My Created Templates</h2>
-                        <TemplateListGrid
-                            templates={myTemplates}
-                            isLoading={isLoadingTemplates}
-                            emptyMessage="You haven't created any templates yet."
-                            loadingMessage="Loading your templates..."
-                            authContext={{ user, isLoggedIn }}
-                            onUse={handleUseTemplate}
-                            onEdit={handleEditTemplate}
-                        />
-                    </section>
-                )}
+                    {activeTab === 'my' && (
+                        <section className={styles.templateSection}>
+                            <h2 className={styles.sectionTitle}>My Created Templates</h2>
+                            <TemplateListGrid
+                                templates={myTemplates}
+                                isLoading={isLoadingTemplates}
+                                emptyMessage="You haven't created any templates yet."
+                                loadingMessage="Loading your templates..."
+                                authContext={{ user, isLoggedIn }}
+                                onUse={handleUseTemplate}
+                                onEdit={handleEditTemplate}
+                                onDelete={handleDeleteTemplate}
+                                onLike={handleLikeTemplate}
+                                onFavorite={handleFavoriteTemplate} 
+                            />
+                        </section>
+                    )}
 
-                {isLoggedIn && activeTab === 'saved' && (
-                    <section className={styles.templateSection}>
-                        <h2 className={styles.sectionTitle}>My Saved/Favorited Templates</h2>
-                        <TemplateListGrid
-                            templates={savedTemplates}
-                            isLoading={isLoadingTemplates}
-                            emptyMessage="You haven't saved any templates yet."
-                            loadingMessage="Loading your saved templates..."
-                            authContext={{ user, isLoggedIn }}
-                            onUse={handleUseTemplate}
-                            onEdit={handleEditTemplate}
-                        />
-                    </section>
-                )}
-            </div>
+                    {activeTab === 'saved' && (
+                        <section className={styles.templateSection}>
+                            <h2 className={styles.sectionTitle}>My Saved/Favorited Templates</h2>
+                            <TemplateListGrid
+                                templates={savedTemplates}
+                                isLoading={isLoadingTemplates}
+                                emptyMessage="You haven't saved any templates yet."
+                                loadingMessage="Loading your saved templates..."
+                                authContext={{ user, isLoggedIn }}
+                                onUse={handleUseTemplate}
+                                onEdit={handleEditTemplate}
+                                onDelete={handleDeleteTemplate}
+                                onLike={handleLikeTemplate}
+                                onFavorite={handleFavoriteTemplate} 
+                            />
+                        </section>
+                    )}
+                </div>
+            )}
         </div>
     );
 }

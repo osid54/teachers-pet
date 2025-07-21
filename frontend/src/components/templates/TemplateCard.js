@@ -32,6 +32,24 @@ export default function TemplateCard({
         onEdit(template.id);
     };
 
+    const handleLikeClick = () => {
+        if (onLike) {
+            onLike(template.id);
+        }
+    };
+
+    const handleDeleteClick = () => {
+        if (onDelete && confirm(`Are you sure you want to delete template "${template.name}"?`)) {
+            onDelete(template.id);
+        }
+    };
+
+    const handleFavoriteClick = () => {
+        if (onFavorite) {
+            onFavorite(template.id);
+        }
+    };
+
     return (
         <div className={styles.card}>
             <h3 className={styles.name}>{template.name}</h3>
@@ -50,15 +68,24 @@ export default function TemplateCard({
                 <Button onClick={handleUseClick} variant="primary" className={styles.actionButton}>
                     Use Template
                 </Button>
-                {/*isOwner && (
-                    <Button onClick={handleEditClick} variant="secondary" className={styles.actionButton}>
-                        Edit
+                {isOwner && (
+                    // <Button onClick={handleEditClick} variant="secondary" className={styles.actionButton}>
+                    //     Edit
+                    // </Button>
+                    <Button onClick={handleDeleteClick} variant="danger" className={styles.actionButton}>
+                        Delete
                     </Button>
-                )*/}
-                {/* Future: Like, Favorite, Delete buttons */}
-                {/* {!isOwner && <Button onClick={() => onLike(template.id)} variant="tertiary">Like</Button>} */}
-                {/* {!isOwner && <Button onClick={() => onFavorite(template.id)} variant="tertiary">Favorite</Button>} */}
-                {/* {isOwner && <Button onClick={() => onDelete(template.id)} variant="danger">Delete</Button>} */}
+                )}
+                {!isOwner && ( 
+                    <>
+                        <Button onClick={handleLikeClick} variant="primary" className={styles.actionButton}>
+                            Like
+                        </Button>
+                        <Button onClick={handleFavoriteClick} variant="primary" className={styles.actionButton}>
+                            Favorite
+                        </Button>
+                    </>
+                )}
             </div>
         </div>
     );

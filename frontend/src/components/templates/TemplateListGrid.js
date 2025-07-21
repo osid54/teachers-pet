@@ -24,6 +24,9 @@ export default function TemplateListGrid({
     authContext,
     onUse,
     onEdit,
+    onDelete,
+    onLike,
+    onFavorite,
 }) {
     const user = authContext ? authContext.user : null; 
 
@@ -44,6 +47,9 @@ export default function TemplateListGrid({
                     isOwner={user ? template.user_id === user.id : false} 
                     onUse={onUse}
                     onEdit={onEdit}
+                    onDelete={onDelete}
+                    onLike={onLike}
+                    onFavorite={onFavorite}
                 />
             ))}
         </div>
