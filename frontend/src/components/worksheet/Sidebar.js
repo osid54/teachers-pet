@@ -122,7 +122,17 @@ export default function WorksheetGenerationSidebar({
                     <p className={styles.loadingMessage}>Loading template for edit...</p>
                 )
             )}
+            <h2 className={styles.sidebarTitle}>Customize Worksheet</h2>
 
+            {/* Uniform Settings Section */}
+            <section className={styles.section}>
+                <h3 className={styles.sectionTitle}>General Settings</h3>
+                <UniformSettingsForm
+                    settings={uniformSettings}
+                    onChange={handleUniformSettingChange}
+                    mode={mode}
+                />
+            </section>
             <section className={styles.section}>
                 <h3 className={styles.sectionTitle}>Selected Topic{mode === "multi" ? "s" : ""} ({mode} mode)</h3>
                 {selectedTopicInstances.length === 0 ? (

@@ -2,26 +2,27 @@
 @import '@/styles/mixins';
 
 .saveFormContainer {
-    @include card-styles($padding: $spacing-xl, $shadow: $box-shadow-lg);
+    @include card-styles($padding: 0, $shadow: $box-shadow-lg);
     width: 100%;
     height: 100%;
     position: absolute;
     top: 0;
     left: 0;
     z-index: 10;
-    background-color: $color-main-200;
+    background-color: $color-main-100;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     overflow-y: auto;
+    margin: $spacing-lg 0;
 }
 
 .title {
     font-size: $font-size-h2;
-    color: $color-main-500;
+    color: $color-main-600;
     margin-top: 0;
-    margin-bottom: $spacing-xl;
+    margin-bottom: $spacing-sm;
     text-align: center;
 }
 
@@ -38,22 +39,28 @@
     // override input bar
 }
 
+.checkboxCustom {
+    text-align: right
+}
+
 .tagsSection {
     margin-bottom: $spacing-md;
-    text-align: left;
+    text-align: right;
+    width: 100%;
 }
 
 .tagsLabel {
     display: block;
     margin-bottom: $spacing-sm;
     font-size: $font-size-sm;
-    color: $color-main-100;
+    color: $color-main-600;
     font-weight: 500;
+    text-align: center;
 }
 
 .tagCheckboxes {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     gap: $spacing-sm;
 }
 

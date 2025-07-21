@@ -97,7 +97,6 @@
 .sectionTitle {
     font-size: $font-size-h2;
     color: $color-main-800;
-    margin-bottom: $spacing-lg;
     text-align: center;
 }
 
@@ -110,13 +109,11 @@
 
 .filterSection {
     @include card-styles();
-    padding: $spacing-xl;
-    margin-bottom: $spacing-xxl;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    display: flex;
+    flex-direction: column;
     gap: $spacing-lg;
-    align-items: start;
-    text-align: left;
+    align-items: center;
+    text-align: center;
 }
 
 .searchInput {
@@ -135,21 +132,28 @@
     font-size: $font-size-base;
     font-weight: 600;
     color: $color-main-600;
-    margin-bottom: $spacing-sm;
     width: 100%; 
 }
 
-.tagFilters,
-.sortOptions {
+.tagFilters {
     display: flex;
     flex-direction: column;
     gap: $spacing-sm;
+    width: 80%;
+}
+
+.sortOptions {
+    display: flex;
+    flex-direction: row;
+    gap: $spacing-sm;
+    align-items: center;
 }
 
 .tagCheckboxes {
-    display: flex;
-    flex-wrap: wrap;
-    gap: $spacing-sm;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: $spacing-xs;
+    text-align: end;
 }
 
 .sortSelect {
