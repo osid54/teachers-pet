@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useSearchParams, useRouter } from 'next/navigation';
 
@@ -18,7 +18,7 @@ import Sidebar from '@/components/worksheet/Sidebar';
 
 import styles from '@/styles/pages/_home.module.scss';
 
-export default function HomePage() {
+function PageContent() {
   const { statusMessage, isLoading: statusLoading, error: statusError } = useBackendStatus();
   const { generate, loading: generateLoading, error: generateError, pdfUrl } = useGenerateWorksheet();
   const { authApi, isLoggedIn } = useAuth();
@@ -358,5 +358,13 @@ export default function HomePage() {
         />
       )}
     </div>
+  );
+}
+
+export default function HomePage() { 
+  return (
+    <Suspense fallback={<div>Loading page...</div>}>
+      <PageContent />
+    </Suspense>
   );
 }
