@@ -238,15 +238,7 @@ async def root():
     """
     A simple endpoint to check if the API is running.
     """
-    return {"message": "Teacher's Pet API is running!"}
-def healthcheck():
     return {"status": "ok"}
-
-if __name__ == "__main__":
-    import uvicorn
-
-    port = int(os.environ.get("PORT", 5000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port)
 
 @app.post("/register", response_model=UserResponse)
 async def register_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
@@ -631,3 +623,9 @@ async def generate_worksheet_endpoint(requests_list: list[SectionRequest]):
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate worksheet: {str(e)}")
+    
+if __name__ == "__main__":
+    import uvicorn
+
+    port = int(os.environ.get("PORT", 5000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
