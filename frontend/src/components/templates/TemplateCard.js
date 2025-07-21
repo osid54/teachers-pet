@@ -72,7 +72,7 @@ export default function TemplateCard({
                     // <Button onClick={handleEditClick} variant="secondary" className={styles.actionButton}>
                     //     Edit
                     // </Button>
-                    <Button onClick={handleDeleteClick} variant="danger" className={styles.actionButton}>
+                    <Button onClick={handleDeleteClick} variant="primary" className={styles.actionButton}>
                         Delete
                     </Button>
                 )}

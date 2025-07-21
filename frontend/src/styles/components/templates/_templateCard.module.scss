@@ -6,14 +6,16 @@
     display: flex;
     flex-direction: column;
     gap: $spacing-md;
-    text-align: left;
+    text-align: center;
     position: relative;
-    height: 100%;
+    max-width: 400px;
+    max-height: 400px;
 }
 
 .name {
     font-size: $font-size-lg;
     color: $color-main-600;
+    overflow-y: auto;
     margin-top: 0;
     margin-bottom: $spacing-xs;
 }
@@ -21,7 +23,6 @@
 .description {
     font-size: $font-size-base;
     color: $color-main-500;
-    flex-grow: 1;
     margin-bottom: $spacing-md;
 }
 
@@ -32,6 +33,7 @@
     gap: $spacing-md;
     margin-bottom: $spacing-sm;
     flex-wrap: wrap;
+    justify-content: center;
 }
 
 .tags {
@@ -39,6 +41,7 @@
     flex-wrap: wrap;
     gap: $spacing-xxs;
     margin-bottom: $spacing-md;
+    justify-content: center;
 }
 
 .tag {
@@ -52,7 +55,6 @@
 .actions {
     display: flex;
     gap: $spacing-sm;
-    margin-top: auto;
     flex-wrap: wrap;
 }
 

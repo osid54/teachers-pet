@@ -124,13 +124,13 @@ export default function SaveTemplateForm({
                     checked={isPublic}
                     onChange={(e) => setIsPublic(e.target.checked)}
                     labelPosition="inline"
-                    className={styles.inputField}
+                    className={styles.checkboxCustom}
                 />
 
                 {(error || saveError) && <p className={styles.errorMessage}>{error || saveError}</p>}
 
                 <div className={styles.formActions}>
-                    <Button type="submit" isLoading={isSaving} disabled={isSaving || currentSelectedTopics.length === 0} variant="accent">
+                    <Button type="submit" isLoading={isSaving} disabled={isSaving || currentSelectedTopics.length === 0} variant="primary">
                         {initialTemplateData ? 'Update Template' : 'Save Template'}
                     </Button>
                     <Button type="button" onClick={onClose} variant="secondary" disabled={isSaving}>

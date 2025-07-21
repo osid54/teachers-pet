@@ -317,7 +317,25 @@ export default function TemplatesPage() {
                                     labelPosition="top"
                                     className={styles.searchInput}
                                 />
-
+                                <div className={styles.sortOptions}>
+                                    <h3 className={styles.filterTitle}>Sort By:</h3>
+                                    <select
+                                        className={styles.sortSelect}
+                                        value={sortBy}
+                                        onChange={(e) => { setSortBy(e.target.value); setCurrentPage(0); }}
+                                    >
+                                        <option value="created_at">Date Created</option>
+                                        <option value="likes_count">Likes</option>
+                                    </select>
+                                    <select
+                                        className={styles.sortSelect}
+                                        value={sortOrder}
+                                        onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(0); }}
+                                    >
+                                        <option value="desc">Descending</option>
+                                        <option value="asc">Ascending</option>
+                                    </select>
+                                </div>
                                 <div className={styles.tagFilters}>
                                     <h3 className={styles.filterTitle}>Filter by Tags:</h3>
                                     <div className={styles.tagCheckboxes}>
@@ -337,26 +355,6 @@ export default function TemplatesPage() {
                                             />
                                         ))}
                                     </div>
-                                </div>
-
-                                <div className={styles.sortOptions}>
-                                    <h3 className={styles.filterTitle}>Sort By:</h3>
-                                    <select
-                                        className={styles.sortSelect}
-                                        value={sortBy}
-                                        onChange={(e) => { setSortBy(e.target.value); setCurrentPage(0); }}
-                                    >
-                                        <option value="created_at">Date Created</option>
-                                        <option value="likes_count">Likes</option>
-                                    </select>
-                                    <select
-                                        className={styles.sortSelect}
-                                        value={sortOrder}
-                                        onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(0); }}
-                                    >
-                                        <option value="desc">Descending</option>
-                                        <option value="asc">Ascending</option>
-                                    </select>
                                 </div>
                             </div>
 
@@ -402,11 +400,11 @@ export default function TemplatesPage() {
                         Saved Templates
                     </Button>
                     <Link href="/" passHref legacyBehavior>
-                        <Button as="a" variant="accent" className={styles.createTemplateButton}>
+                            <Button as="a" variant="secondary" className={styles.createTemplateButton}>
                             Create New Template
                         </Button>
                     </Link>
-                    <Button onClick={logout} variant="danger" className={styles.tabButton}>
+                        <Button onClick={logout} variant="secondary" className={styles.tabButton}>
                         Logout
                     </Button>
                 </div>
@@ -419,14 +417,15 @@ export default function TemplatesPage() {
                             <h2 className={styles.sectionTitle}>Public Templates</h2>
                             <div className={styles.filterSection}>
                                 <Input label="Search" type="text" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(0); }} placeholder="Search by name or description..." labelPosition="top" className={styles.searchInput} />
-                                <div className={styles.tagFilters}>
-                                    <h3 className={styles.filterTitle}>Filter by Tags:</h3>
-                                    <div className={styles.tagCheckboxes}>{PREDEFINED_TAGS.map(tag => (<Checkbox key={tag} label={tag} checked={selectedTags.includes(tag)} onChange={(e) => { const isChecked = e.target.checked; setSelectedTags(prev => isChecked ? [...prev, tag] : prev.filter(t => t !== tag)); setCurrentPage(0); }} labelPosition="inline" />))}</div>
-                                </div>
+
                                 <div className={styles.sortOptions}>
                                     <h3 className={styles.filterTitle}>Sort By:</h3>
                                     <select className={styles.sortSelect} value={sortBy} onChange={(e) => { setSortBy(e.target.value); setCurrentPage(0); }}><option value="created_at">Date Created</option><option value="likes_count">Likes</option></select>
                                     <select className={styles.sortSelect} value={sortOrder} onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(0); }}><option value="desc">Descending</option><option value="asc">Ascending</option></select>
+                                </div>
+                                <div className={styles.tagFilters}>
+                                    <h3 className={styles.filterTitle}>Filter by Tags:</h3>
+                                    <div className={styles.tagCheckboxes}>{PREDEFINED_TAGS.map(tag => (<Checkbox key={tag} label={tag} checked={selectedTags.includes(tag)} onChange={(e) => { const isChecked = e.target.checked; setSelectedTags(prev => isChecked ? [...prev, tag] : prev.filter(t => t !== tag)); setCurrentPage(0); }} labelPosition="inline" />))}</div>
                                 </div>
                             </div>
                             <TemplateListGrid 
