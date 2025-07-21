@@ -50,11 +50,11 @@ export default function TemplateCard({
                 <Button onClick={handleUseClick} variant="primary" className={styles.actionButton}>
                     Use Template
                 </Button>
-                {isOwner && (
+                {/*isOwner && (
                     <Button onClick={handleEditClick} variant="secondary" className={styles.actionButton}>
                         Edit
                     </Button>
-                )}
+                )*/}
                 {/* Future: Like, Favorite, Delete buttons */}
                 {/* {!isOwner && <Button onClick={() => onLike(template.id)} variant="tertiary">Like</Button>} */}
                 {/* {!isOwner && <Button onClick={() => onFavorite(template.id)} variant="tertiary">Favorite</Button>} */}

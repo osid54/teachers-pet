@@ -13,21 +13,21 @@
 
 .name {
     font-size: $font-size-lg;
-    color: $color-main-500;
+    color: $color-main-600;
     margin-top: 0;
     margin-bottom: $spacing-xs;
 }
 
 .description {
     font-size: $font-size-base;
-    color: $color-main-200;
+    color: $color-main-500;
     flex-grow: 1;
     margin-bottom: $spacing-md;
 }
 
 .meta {
     font-size: $font-size-sm;
-    color: $color-main-100;
+    color: $color-main-500;
     display: flex;
     gap: $spacing-md;
     margin-bottom: $spacing-sm;
@@ -42,11 +42,11 @@
 }
 
 .tag {
-    background-color: lighten($color-main-600, 30%);
-    color: darken($color-main-300, 10%);
+    background-color: $color-main-400;
+    color: $color-main-100;
     padding: $spacing-xxs $spacing-sm;
-    border-radius: $border-radius-sm;
-    font-size: $font-size-sm;
+    border-radius: $border-radius-lg;
+    font-size: $font-size-md;
 }
 
 .actions {

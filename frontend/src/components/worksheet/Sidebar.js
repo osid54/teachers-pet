@@ -6,6 +6,7 @@ import { Button } from '@/components//ui';
 
 import UniformSettingsForm from './UniformSettingsForm';
 import SelectedTopicsList from './SelectedTopicsList';
+import SaveTemplateForm from './SaveTemplateForm';
 
 /*
  * @param {object} props - Component props.
@@ -20,7 +21,7 @@ import SelectedTopicsList from './SelectedTopicsList';
  * @param {string | null} props.generateError - Error message from the generate hook.
  */
 
-export default function Sidebar({
+export default function WorksheetGenerationSidebar({
     mode,
     selectedTopicInstances,
     onUniformSettingChange,
@@ -30,19 +31,26 @@ export default function Sidebar({
     onGenerate,
     isGenerating,
     generateError,
-}) {
-    const [uniformSettings, setUniformSettings] = useState({
-        pageCount: 1,
-        problemsPerPage: 10,
-        includeAnswerKey: true,
-        mixedProblems: false,
-    });
-
+    uniformSettings,
+    onSaveTemplate,
+    isSavingTemplate,
+    saveTemplateError,
+    currentEditingTemplate,
+    shouldOpenSaveFormOnInit
+    }) {
+    
+    const [showSaveForm, setShowSaveForm] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
         setIsMounted(true);
     }, []);
+
+    useEffect(() => {
+        if (shouldOpenSaveFormOnInit && !showSaveForm) {
+            setShowSaveForm(true);
+        }
+    }, [shouldOpenSaveFormOnInit, showSaveForm]);
 
     useEffect(() => {
         if (isMounted) {
@@ -56,33 +64,65 @@ export default function Sidebar({
 
     const handleUniformSettingChange = (e) => {
         const { name, value, type, checked } = e.target;
-        setUniformSettings((prevSettings) => ({
-            ...prevSettings,
-            [name]: type === 'checkbox' ? checked : Number(value),
-        }));
+
+        const updatedValue = type === 'checkbox' ? checked : Number(value);
+
+        const newUniformSettings = {
+            ...uniformSettings, 
+            [name]: updatedValue,
+        };
+
+        onUniformSettingChange(newUniformSettings);
     };
 
     const handleGenerateClick = () => {
+        setShowSaveForm(false);
         onGenerate(uniformSettings);
     };
 
+    const handleSaveTemplateClick = () => {
+        if (selectedTopicInstances.length === 0) {
+            alert("Please select at least one topic before saving a template.");
+            return;
+        }
+        setShowSaveForm(true);
+    };
+
+    const handleSaveFormClose = () => {
+        setShowSaveForm(false);
+    };
+
+    const handleSaveFormSubmit = (templateData) => {
+        if (onSaveTemplate) {
+            onSaveTemplate(templateData);
+        }
+    };
+
     const isGenerateButtonDisabled = selectedTopicInstances.length === 0 || isGenerating;
+    const isSaveButtonDisabled = selectedTopicInstances.length === 0;
+
+    if (!isMounted) {
+        return null;
+    }
 
     return (
         <aside className={styles.sidebar}>
-            <h2 className={styles.sidebarTitle}>Customize Worksheet</h2>
+            {showSaveForm && (
+                (!currentEditingTemplate || (currentEditingTemplate && currentEditingTemplate.id)) ? (
+                    <SaveTemplateForm
+                        currentSelectedTopics={selectedTopicInstances}
+                        currentUniformSettings={uniformSettings}
+                        onClose={handleSaveFormClose}
+                        onSubmit={handleSaveFormSubmit}
+                        isSaving={isSavingTemplate}
+                        saveError={saveTemplateError}
+                        initialTemplateData={currentEditingTemplate}
+                    />
+                ) : (
+                    <p className={styles.loadingMessage}>Loading template for edit...</p>
+                )
+            )}
 
-            {/* Uniform Settings Section */}
-            <section className={styles.section}>
-                <h3 className={styles.sectionTitle}>General Settings</h3>
-                <UniformSettingsForm
-                    settings={uniformSettings}
-                    onChange={handleUniformSettingChange}
-                    mode={mode}
-                />
-            </section>
-
-            {/* Selected Topics List Section */}
             <section className={styles.section}>
                 <h3 className={styles.sectionTitle}>Selected Topic{mode === "multi" ? "s" : ""} ({mode} mode)</h3>
                 {selectedTopicInstances.length === 0 ? (
@@ -98,7 +138,6 @@ export default function Sidebar({
                 )}
             </section>
 
-            {/* Generate Button (fixed at bottom of sidebar) */}
             <div className={styles.generateButtonContainer}>
                 <Button
                     onClick={handleGenerateClick}
@@ -108,6 +147,14 @@ export default function Sidebar({
                     className={styles.generateButton}
                 >
                     Generate Worksheet
+                </Button>
+                <Button
+                    onClick={handleSaveTemplateClick}
+                    disabled={isSaveButtonDisabled}
+                    variant="primary"
+                    className={styles.generateButton}
+                >
+                    Save Template
                 </Button>
             </div>
         </aside>

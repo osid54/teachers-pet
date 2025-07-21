@@ -1,31 +1,31 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+import { useSearchParams, useRouter } from 'next/navigation';
+
 import { useBackendStatus } from '@/hooks/useBackendStatus';
 import { useGenerateWorksheet } from '@/hooks/useGenerateWorksheet';
 import { fetchProblemsList } from '@/services/worksheetApi';
 import { curriculumData } from '@/lib/curriculum';
+import { useAuth } from '@/context/AuthContext';
 
 import SubjectHeader from '@/components/worksheet/SubjectHeader';
 import ProblemTypeCard from '@/components/worksheet/ProblemTypeCard';
 import HowToUse from '@/components/layout/HowToUse';
 import { Button } from '@/components/ui';
-
 import Sidebar from '@/components/worksheet/Sidebar';
-import { v4 as uuidv4 } from 'uuid';
 
 import styles from '@/styles/pages/_home.module.scss';
 
 export default function HomePage() {
   const { statusMessage, isLoading: statusLoading, error: statusError } = useBackendStatus();
   const { generate, loading: generateLoading, error: generateError, pdfUrl } = useGenerateWorksheet();
+  const { authApi, isLoggedIn } = useAuth();
+  const router = useRouter();
+
   const [topicSelectionMode, setTopicSelectionMode] = useState('single');
   const [selectedTopicInstances, setSelectedTopicInstances] = useState([]);
-
-  const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const [uniformSettings, setUniformSettings] = useState({
     pageCount: 1,
@@ -33,6 +33,118 @@ export default function HomePage() {
     includeAnswerKey: true,
     mixedProblems: false,
   });
+
+  const searchParams = useSearchParams();
+  const templateIdFromUrl = searchParams.get('templateId');
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [saveTemplateError, setSaveTemplateError] = useState(null);
+
+  const [currentEditingTemplate, setCurrentEditingTemplate] = useState(null);
+  const [shouldOpenSaveFormAfterLoad, setShouldOpenSaveFormAfterLoad] = useState(false);
+
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const handleSaveTemplate = async (templateData) => {
+    if (!isLoggedIn) {
+      setSaveTemplateError("You must be logged in to save templates.");
+      return;
+    }
+    setIsSavingTemplate(true);
+    setSaveTemplateError(null);
+    try {
+      let response;
+      if (currentEditingTemplate && currentEditingTemplate.id) {
+        response = await authApi.put(`/templates/${currentEditingTemplate.id}`, templateData);
+        alert("Template updated successfully!");
+        console.log("Template updated successfully:", response.data);
+      } else {
+        response = await authApi.post('/templates/', templateData);
+        alert("Template saved successfully!");
+        console.log("Template saved successfully:", response.data);
+        setCurrentEditingTemplate(null);
+      }
+    } catch (error) {
+      console.error("Failed to save template:", error.response?.data || error.message);
+      setSaveTemplateError(error.response?.data?.detail || "Failed to save template.");
+      throw new Error("Failed to save template."); 
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  };
+
+  useEffect(() => {
+    const loadTemplate = async () => {
+      let settingsToLoad = null;
+      let loadedFrom = '';
+
+      if (typeof window !== 'undefined') {
+        const tempLoadTemplateJson = localStorage.getItem('tempLoadTemplate');
+        if (tempLoadTemplateJson) {
+          settingsToLoad = JSON.parse(tempLoadTemplateJson);
+          loadedFrom = 'localStorage';
+          localStorage.removeItem('tempLoadTemplate');
+        }
+      }
+
+      if (!settingsToLoad && templateIdFromUrl && isLoggedIn && isMounted) {
+        try {
+          const response = await authApi.get(`/templates/${templateIdFromUrl}`);
+          settingsToLoad = response.data.settings_json;
+          loadedFrom = 'api';
+        } catch (error) {
+          console.error("Failed to load template from API:", error.response?.data || error.message);
+          alert("Failed to load template for editing. It might not exist or you don't have access.");
+          router.replace('/');
+          return;
+        }
+      }
+
+      if (settingsToLoad) {
+        console.log(`Loading template settings from ${loadedFrom}:`, settingsToLoad);
+
+        const loadedUniformSettings = settingsToLoad.uniformSettings || {};
+
+        setUniformSettings({
+          pageCount: loadedUniformSettings.pageCount ?? 1, 
+          problemsPerPage: loadedUniformSettings.problemsPerPage ?? 10,
+          includeAnswerKey: loadedUniformSettings.includeAnswerKey ?? true, 
+          mixedProblems: loadedUniformSettings.mixedProblems ?? false,
+        });
+
+        setTopicSelectionMode(loadedUniformSettings.mixedProblems ? 'multi' : 'single');
+
+        const loadedInstances = (settingsToLoad.selectedTopicInstances || []).map(inst => ({
+          ...inst,
+          id: inst.id || uuidv4()
+        }));
+        setSelectedTopicInstances(loadedInstances);
+
+        if (loadedFrom === 'api') {
+          router.replace('/');
+        }
+
+        if (templateIdFromUrl) {
+          setShouldOpenSaveFormAfterLoad(true);
+        }
+      }
+    };
+
+    if (isMounted && !generateLoading) {
+      loadTemplate();
+    }
+  }, [templateIdFromUrl, isLoggedIn, isMounted, authApi, generateLoading]);
+
+  useEffect(() => {
+    if (shouldOpenSaveFormAfterLoad && currentEditingTemplate) {
+      // Find the sidebar component and set its showSaveForm state
+      // This requires a ref, or passing a function down the tree.
+      // Let's pass a function down.
+      // This also needs to be passed to SidebarWrapper
+    }
+  }, [shouldOpenSaveFormAfterLoad, currentEditingTemplate]);
 
   const getDefaultModifiersForTopic = (topicId) => {
     return {
@@ -115,7 +227,7 @@ export default function HomePage() {
       console.warn("Please select at least one topic to generate.");
       return;
     }
-    let finalGenerationRequest = {}; 
+    let finalGenerationRequest = {};
 
     if (uniformSettingsFromSidebar.mixedProblems) {
       let allProblemsToMix = [];
@@ -155,7 +267,7 @@ export default function HomePage() {
       }
 
       finalGenerationRequest = {
-        subject: selectedTopicInstances[0].subject, 
+        subject: selectedTopicInstances[0].subject,
         topic: ["mixed"],
         page_count: uniformSettingsFromSidebar.pageCount,
         include_answer_key: uniformSettingsFromSidebar.includeAnswerKey,
@@ -164,7 +276,7 @@ export default function HomePage() {
         modifiers: {}
       };
 
-      generate([finalGenerationRequest]); 
+      generate([finalGenerationRequest]);
 
     } else {
       finalGenerationRequest = selectedTopicInstances.map(instance => ({
@@ -184,10 +296,7 @@ export default function HomePage() {
     <div className={styles.container}>
       <div className={styles.mainContent}>
         <h1 className={styles.pageTitle}>Generate Your Worksheet</h1>
-        {/* How to Use Section */}
         <HowToUse />
-
-        {/* Topic Selection Mode Buttons */}
         <div className={styles.modeSelection}>
           <Button
             onClick={() => {
@@ -209,8 +318,6 @@ export default function HomePage() {
             Multi Topic
           </Button>
         </div>
-
-        {/* Curriculum Grid */}
         <div className={styles.curriculumGrid}>
           {curriculumData.map(subjectData => (
             <React.Fragment key={subjectData.subject}>
@@ -232,7 +339,6 @@ export default function HomePage() {
           ))}
         </div>
       </div>
-      {/* Worksheet Generation Sidebar */}
       {isMounted && (
         <Sidebar
           mode={topicSelectionMode}
@@ -244,6 +350,11 @@ export default function HomePage() {
           onGenerate={handleGenerateButtonClick}
           isGenerating={generateLoading}
           generateError={generateError}
+          uniformSettings={uniformSettings}
+          onSaveTemplate={handleSaveTemplate}
+          isSavingTemplate={isSavingTemplate}
+          saveTemplateError={saveTemplateError}
+          currentEditingTemplate={currentEditingTemplate}
         />
       )}
     </div>
