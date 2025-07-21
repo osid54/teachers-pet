@@ -22,15 +22,29 @@ backend_path = Path(__file__).parent
 sys.path.append(str(backend_path))  
 
 from database import get_db
+from database import create_db_and_tables
 from models import User, Template, user_likes_template, user_favorites_template
 from problem_generator.operations import generate_arithmetic_problems
 from pdf_generator.main import create_pdf_worksheet
+
+import sqlalchemy
+import logging
+
+logging.basicConfig()
+logging.getLogger('sqlalchemy').setLevel(logging.INFO)
+print("Using SQLAlchemy version:", sqlalchemy.__version__)
 
 app = FastAPI(
     title="Teacher's Pet API",
     description="API for generating educational worksheets.",
     version="0.1.0"
 )
+
+@app.on_event("startup")
+async def startup_event():
+    print("Creating tables...")
+    await create_db_and_tables()
+    print("Tables created.")
 
 origins = [
     "http://localhost:3000",
