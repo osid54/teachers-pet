@@ -4,14 +4,26 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button, Input } from '@/components/ui';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import styles from '@/styles/pages/_templates.module.scss';
 import authFormStyles from '@/styles/components/ui/_authForms.module.scss';
 
+import TemplateListGrid from '@/components/templates/TemplateListGrid';
+
 export default function TemplatesPage() {
-    const { isLoggedIn, isLoading: authLoading, error: authError, login, register, logout } = useAuth(); 
-    const [activeTab, setActiveTab] = useState('public');
+    const {
+        user,
+        isLoggedIn,
+        isLoading: authLoading,
+        error: authError,
+        login,
+        register,
+        logout,
+        authApi
+    } = useAuth(); const [activeTab, setActiveTab] = useState('public');
     const [isMounted, setIsMounted] = useState(false);
+    const router = useRouter();
 
     const [showLoginForm, setShowLoginForm] = useState(false);
     const [showRegisterForm, setShowRegisterForm] = useState(false);
@@ -23,11 +35,63 @@ export default function TemplatesPage() {
     const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
     const [inlineAuthError, setInlineAuthError] = useState(null);
 
+    const [publicTemplates, setPublicTemplates] = useState([]);
+    const [myTemplates, setMyTemplates] = useState([]);
+    const [savedTemplates, setSavedTemplates] = useState([]);
+    const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+    const [templatesError, setTemplatesError] = useState(null);
+
     useEffect(() => {
         setIsMounted(true);
-        if (!isLoggedIn) {
-        }
     }, [isLoggedIn]);
+
+    const fetchTemplates = async () => {
+        if (!isMounted || authLoading || !authApi) {
+            return;
+        }
+
+        setIsLoadingTemplates(true);
+        setTemplatesError(null);
+
+        try {
+            let response;
+            if (activeTab === 'public') {
+                response = await authApi.get('/templates/public');
+                setPublicTemplates(response.data);
+            } else if (activeTab === 'my' && isLoggedIn) {
+                response = await authApi.get('/templates/me');
+                setMyTemplates(response.data);
+            } else if (activeTab === 'saved' && isLoggedIn) {
+                response = await authApi.get('/templates/saved');
+                setSavedTemplates(response.data);
+            }
+        } catch (err) {
+            console.error(`Failed to fetch ${activeTab} templates:`, err.response?.data || err.message);
+            setTemplatesError(err.response?.data?.detail || `Failed to load ${activeTab} templates.`);
+            if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+                logout();
+            }
+        } finally {
+            setIsLoadingTemplates(false);
+        }
+    };
+
+    useEffect(() => {
+        if (isMounted && !authLoading && authApi) {
+            fetchTemplates();
+        }
+    }, [activeTab, isLoggedIn, isMounted, authLoading, authApi]); 
+
+    const handleUseTemplate = (template) => {
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('tempLoadTemplate', JSON.stringify(template.settings_json));
+            router.push('/');
+        }
+    };
+
+    const handleEditTemplate = (templateId) => {
+        router.push(`/?templateId=${templateId}`);
+    };
 
     const handleLoginSubmit = async (e) => {
         e.preventDefault();
@@ -165,7 +229,15 @@ export default function TemplatesPage() {
                     {!showLoginForm && !showRegisterForm && (
                         <section className={styles.templateSection}>
                             <h2 className={styles.sectionTitle}>Public Templates</h2>
-                            <p>Public templates will be displayed here.</p>
+                            <TemplateListGrid
+                                templates={publicTemplates}
+                                isLoading={isLoadingTemplates}
+                                emptyMessage="No public templates found."
+                                loadingMessage="Loading public templates..."
+                                authContext={{ user: null, isLoggedIn: false }}
+                                onUse={handleUseTemplate}
+                                onEdit={handleEditTemplate}
+                            />
                         </section>
                     )}
                 </div>
@@ -207,30 +279,52 @@ export default function TemplatesPage() {
                 </div>
             )}
 
-            {isLoggedIn && (
-                <div className={styles.templateDisplayArea}>
-                    {activeTab === 'public' && (
-                        <section className={styles.templateSection}>
-                            <h2 className={styles.sectionTitle}>All Public Templates</h2>
-                            <p>Public templates will be displayed here.</p>
-                        </section>
-                    )}
+            <div className={styles.templateDisplayArea}>
+                {(!isLoggedIn && !showLoginForm && !showRegisterForm) || isLoggedIn && activeTab === 'public' && (
+                    <section className={styles.templateSection}>
+                        <h2 className={styles.sectionTitle}>Public Templates</h2>
+                        <TemplateListGrid
+                            templates={publicTemplates}
+                            isLoading={isLoadingTemplates}
+                            emptyMessage="No public templates found."
+                            loadingMessage="Loading public templates..."
+                            authContext={{ user: isLoggedIn ? user : null, isLoggedIn: isLoggedIn }}
+                            onUse={handleUseTemplate}
+                            onEdit={handleEditTemplate}
+                        />
+                    </section>
+                )}
 
-                    {activeTab === 'my' && (
-                        <section className={styles.templateSection}>
-                            <h2 className={styles.sectionTitle}>My Created Templates</h2>
-                            <p>Your created templates will be displayed here.</p>
-                        </section>
-                    )}
+                {isLoggedIn && activeTab === 'my' && (
+                    <section className={styles.templateSection}>
+                        <h2 className={styles.sectionTitle}>My Created Templates</h2>
+                        <TemplateListGrid
+                            templates={myTemplates}
+                            isLoading={isLoadingTemplates}
+                            emptyMessage="You haven't created any templates yet."
+                            loadingMessage="Loading your templates..."
+                            authContext={{ user, isLoggedIn }}
+                            onUse={handleUseTemplate}
+                            onEdit={handleEditTemplate}
+                        />
+                    </section>
+                )}
 
-                    {activeTab === 'saved' && (
-                        <section className={styles.templateSection}>
-                            <h2 className={styles.sectionTitle}>My Saved/Favorited Templates</h2>
-                            <p>Your saved templates will be displayed here.</p>
-                        </section>
-                    )}
-                </div>
-            )}
+                {isLoggedIn && activeTab === 'saved' && (
+                    <section className={styles.templateSection}>
+                        <h2 className={styles.sectionTitle}>My Saved/Favorited Templates</h2>
+                        <TemplateListGrid
+                            templates={savedTemplates}
+                            isLoading={isLoadingTemplates}
+                            emptyMessage="You haven't saved any templates yet."
+                            loadingMessage="Loading your saved templates..."
+                            authContext={{ user, isLoggedIn }}
+                            onUse={handleUseTemplate}
+                            onEdit={handleEditTemplate}
+                        />
+                    </section>
+                )}
+            </div>
         </div>
     );
 }

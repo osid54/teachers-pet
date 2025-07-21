@@ -1,0 +1,61 @@
+@import '@/styles/variables';
+@import '@/styles/mixins';
+
+.card {
+    @include card-styles($padding: $spacing-lg, $shadow: $box-shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-md;
+    text-align: left;
+    position: relative;
+    height: 100%;
+}
+
+.name {
+    font-size: $font-size-lg;
+    color: $color-main-500;
+    margin-top: 0;
+    margin-bottom: $spacing-xs;
+}
+
+.description {
+    font-size: $font-size-base;
+    color: $color-main-200;
+    flex-grow: 1;
+    margin-bottom: $spacing-md;
+}
+
+.meta {
+    font-size: $font-size-sm;
+    color: $color-main-100;
+    display: flex;
+    gap: $spacing-md;
+    margin-bottom: $spacing-sm;
+    flex-wrap: wrap;
+}
+
+.tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-xxs;
+    margin-bottom: $spacing-md;
+}
+
+.tag {
+    background-color: lighten($color-main-600, 30%);
+    color: darken($color-main-300, 10%);
+    padding: $spacing-xxs $spacing-sm;
+    border-radius: $border-radius-sm;
+    font-size: $font-size-sm;
+}
+
+.actions {
+    display: flex;
+    gap: $spacing-sm;
+    margin-top: auto;
+    flex-wrap: wrap;
+}
+
+.actionButton {
+    flex-grow: 1;
+}

@@ -1,0 +1,16 @@
+@import '@/styles/variables';
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: $spacing-xl;
+    padding: $spacing-md;
+}
+
+.loadingMessage,
+.emptyMessage {
+    text-align: center;
+    padding: $spacing-xxl;
+    font-size: $font-size-lg;
+    color: $color-main-500;
+}

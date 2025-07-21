@@ -16,10 +16,10 @@ import sys
 from pathlib import Path
 
 backend_path = Path(__file__).parent
-sys.path.append(str(backend_path))
+sys.path.append(str(backend_path))  
 
 from database import get_db
-from models import User
+from models import User, Template
 from problem_generator.operations import generate_arithmetic_problems
 from pdf_generator.main import create_pdf_worksheet
 
@@ -45,6 +45,44 @@ app.add_middleware(
 )
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+class TemplateBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    description: Optional[str] = Field(None, max_length=500)
+    settings_json: dict = Field(..., description="JSON representation of worksheet settings")
+    is_public: bool = Field(False)
+    tags: List[str] = Field([], description="List of predefined tags for the template")
+
+class TemplateCreate(TemplateBase):
+    pass
+
+class TemplateUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    description: Optional[str] = Field(None, max_length=500)
+    settings_json: Optional[dict] = None
+    is_public: Optional[bool] = None
+    tags: Optional[List[str]] = None
+
+class TemplateResponse(TemplateBase):
+    id: int
+    user_id: int
+    likes_count: int
+    created_at: datetime
+    updated_at: datetime
+
+    owner_username: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+    @classmethod
+    def from_orm_with_owner(cls, template_obj: Template, user_obj: Optional[User] = None):
+        data = cls.model_validate(template_obj).model_dump()
+        if user_obj: 
+            data["owner_username"] = user_obj.username
+        else:
+            data["owner_username"] = None 
+        return data
 
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
@@ -97,13 +135,10 @@ def create_access_token(data: dict, expires_delta: Optional[int] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-
-# Helper function to get user from DB
 async def get_user_from_db(db: AsyncSession, username: str):
     result = await db.execute(select(User).filter(User.username == username))
     return result.scalar_one_or_none()
 
-# --- NEW: Dependency to get current authenticated user ---
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db)
@@ -188,6 +223,118 @@ async def login_for_access_token(
 @app.get("/users/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+@app.get("/templates/me", response_model=List[TemplateResponse])
+async def get_my_templates(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(Template).filter(Template.user_id == current_user.id).order_by(Template.created_at.desc())
+    )
+    my_templates = result.scalars().all()
+    return [TemplateResponse.from_orm_with_owner(t, current_user) for t in my_templates]
+
+
+@app.get("/templates/{template_id}", response_model=TemplateResponse)
+async def get_template_by_id(
+    template_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user)
+):
+    result = await db.execute(
+        select(Template).filter(Template.id == template_id)
+    )
+    template = result.scalar_one_or_none()
+
+    if not template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+
+    if not template.is_public and (not current_user or template.user_id != current_user.id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this template")
+
+    owner_user = None
+    if template.user_id:
+        owner_user_result = await db.execute(select(User).filter(User.id == template.user_id))
+        owner_user = owner_user_result.scalar_one_or_none()
+
+    return TemplateResponse.from_orm_with_owner(template, owner_user)
+
+
+@app.post("/templates/", response_model=TemplateResponse, status_code=status.HTTP_201_CREATED)
+async def create_template(
+    template: TemplateCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    db_template = Template(
+        user_id=current_user.id,
+        name=template.name,
+        description=template.description,
+        settings_json=template.settings_json,
+        is_public=template.is_public,
+        likes_count=0,
+        tags=template.tags
+    )
+    db.add(db_template)
+    await db.commit()
+    await db.refresh(db_template)
+    return TemplateResponse.from_orm_with_owner(db_template, current_user)
+
+
+@app.put("/templates/{template_id}", response_model=TemplateResponse)
+async def update_template(
+    template_id: int,
+    template_update: TemplateUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(Template).filter(Template.id == template_id)
+    )
+    db_template = result.scalar_one_or_none()
+
+    if not db_template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+
+    if db_template.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this template")
+
+    update_data = template_update.dict(exclude_unset=True)
+    
+    for key, value in update_data.items():
+        setattr(db_template, key, value)
+
+    db_template.updated_at = datetime.utcnow() 
+
+    await db.commit()
+    await db.refresh(db_template)
+
+    owner_user_result = await db.execute(select(User).filter(User.id == db_template.user_id))
+    owner_user = owner_user_result.scalar_one_or_none()
+    return TemplateResponse.from_orm_with_owner(db_template, owner_user)
+
+
+@app.delete("/templates/{template_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_template(
+    template_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(Template).filter(Template.id == template_id)
+    )
+    db_template = result.scalar_one_or_none()
+
+    if not db_template:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
+
+    if db_template.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this template")
+
+    await db.delete(db_template)
+    await db.commit()
+    return 
 
 @app.post("/get-problems", response_model=List[dict])
 async def get_problems_endpoint(request_data: SectionRequest):
