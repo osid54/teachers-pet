@@ -11,6 +11,7 @@ from models import Base
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://teacherspetuser:teacherspetsecretpassword@localhost/teachers_pet_db")
 
 engine = create_async_engine(DATABASE_URL, echo=True)
+print(f"SQLAlchemy engine created with dialect: {engine.dialect}")
 
 AsyncSessionLocal = async_sessionmaker(
     autocommit=False,
