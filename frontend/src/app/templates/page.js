@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button, Input, Checkbox } from '@/components/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 import styles from '@/styles/pages/_templates.module.scss';
 import authFormStyles from '@/styles/components/ui/_authForms.module.scss';
@@ -84,7 +85,9 @@ export default function TemplatesPage() {
             }
         } catch (err) {
             console.error(`Failed to fetch ${activeTab} templates:`, err.response?.data || err.message);
-            setTemplatesError(err.response?.data?.detail || `Failed to load ${activeTab} templates.`);
+            const msg = err.response?.data?.detail || `Failed to load ${activeTab} templates.`;
+            setTemplatesError(msg);
+            toast.error(msg);
             if (err.response && (err.response.status === 401 || err.response.status === 403)) {
                 logout();
             }
@@ -110,11 +113,12 @@ export default function TemplatesPage() {
 
     const handleLikeTemplate = async (templateId) => {
         if (!isLoggedIn) {
-            alert("Please log in to like templates.");
+            toast.error("Please log in to like templates.");
             return;
         }
         try {
             const response = await authApi.post(`/templates/${templateId}/like`);
+            toast.success(response.data.message);
             if (activeTab === 'public') {
                 setPublicTemplates(prev => prev.map(t =>
                     t.id === templateId ? { ...t, likes_count: response.data.likes_count } : t
@@ -126,42 +130,45 @@ export default function TemplatesPage() {
             }
         } catch (err) {
             console.error("Failed to like template:", err.response?.data || err.message);
-            alert("Failed to like template. " + (err.response?.data?.detail || ""));
+            const msg = err.response?.data?.detail || "Failed to like template.";
+            toast.error(msg);
         }
     };
 
     const handleFavoriteTemplate = async (templateId) => {
         if (!isLoggedIn) {
-            alert("Please log in to favorite templates.");
+            toast.error("Please log in to favorite templates.");
             return;
         }
         try {
             const response = await authApi.post(`/templates/${templateId}/favorite`);
-            alert(response.data.message);
+            toast.success(response.data.message);
             if (activeTab === 'saved') {
                 fetchTemplates();
             }
         } catch (err) {
             console.error("Failed to favorite template:", err.response?.data || err.message);
-            alert("Failed to favorite template. " + (err.response?.data?.detail || ""));
+            const msg = err.response?.data?.detail || "Failed to favorite template.";
+            toast.error(msg);
         }
     };
 
     const handleDeleteTemplate = async (templateId) => {
         if (!isLoggedIn) {
-            alert("Please log in to delete templates.");
+            toast.error("Please log in to delete templates.");
             return;
         }
         try {
             await authApi.delete(`/templates/${templateId}`);
-            alert("Template deleted successfully!"); // Or a toast
+            toast.success("Template deleted successfully!");
             if (activeTab === 'my') {
                 setMyTemplates(prev => prev.filter(t => t.id !== templateId));
             }
             setPublicTemplates(prev => prev.filter(t => t.id !== templateId));
         } catch (err) {
             console.error("Failed to delete template:", err.response?.data || err.message);
-            alert("Failed to delete template. " + (err.response?.data?.detail || ""));
+            const msg = err.response?.data?.detail || "Failed to delete template.";
+            toast.error(msg);
         }
     };
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { Input, Checkbox, Button } from '@/components/ui';
 import styles from '@/styles/components/worksheet/_saveTemplateForm.module.scss';
 import { PREDEFINED_TAGS } from '@/lib/constants';
@@ -51,7 +52,9 @@ export default function SaveTemplateForm({
         e.preventDefault();
         setError(null);
         if (currentSelectedTopics.length === 0) {
-            setError("Please select at least one topic to save a template.");
+            const msg = "Please select at least one topic to save a template.";
+            setError(msg);
+            toast.error(msg);
             return;
         }
 

@@ -20,7 +20,9 @@
 
   @include breakpoint-sm {
     width: 100%; 
-    // transform: translateX(100%); // Start off-screen for mobile (if toggled)
+    height: 25%;
+    top: calc(100vh - 25%);
+    left: 0;
   }
 }
 
@@ -62,6 +64,8 @@
 }
 
 .generateButtonContainer {
+  display: flex;
+  gap: 5%;
   position: absolute; 
   bottom: 0;
   left: 0;
@@ -73,5 +77,10 @@
 }
 
 .generateButton {
-  width: 100%;
+  width: 75%;
+  font-size: $font-size-lg;
+}
+
+.saveButton {
+  width: 20%;
 }
