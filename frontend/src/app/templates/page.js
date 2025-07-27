@@ -96,9 +96,6 @@ export default function TemplatesPage() {
         }
     }, [activeTab, isLoggedIn, isMounted, authLoading, authApi, currentPage, searchQuery, selectedTags, sortBy, sortOrder]);
 
-    useEffect(() => {
-        fetchTemplates();
-    }, [fetchTemplates]);
 
     const handleUseTemplate = (template) => {
         if (typeof window !== 'undefined') {

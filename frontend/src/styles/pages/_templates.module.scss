@@ -51,11 +51,13 @@
     font-size: $font-size-lg;
     color: $color-main-500;
     margin-bottom: $spacing-xl;
+    margin-top: 0;
 }
 
 .authButtons {
     @include flex-center;
     gap: $spacing-md;
+    margin-bottom: $spacing-xl;
 
     @include breakpoint-sm {
         flex-direction: column;
@@ -158,11 +160,11 @@
 
 .sortSelect {
     padding: $spacing-sm;
-    border: 1px solid $color-main-600;
+    border: 1px solid $color-main-500;
     border-radius: $border-radius-sm;
     background-color: $color-main-200;
     font-size: $font-size-base;
-    color: $color-main-600;
+    color: $color-main-500;
     cursor: pointer;
     -webkit-appearance: none;
     -moz-appearance: none;
@@ -175,7 +177,7 @@
 .pagination {
     @include flex-center;
     gap: $spacing-md;
-    margin-top: $spacing-xxl;
+    margin-top: 0;
     margin-bottom: $spacing-xxl;
 }
 

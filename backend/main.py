@@ -10,7 +10,8 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy import and_, Table
 from passlib.context import CryptContext
 from datetime import datetime, timedelta
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm 
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security.utils import get_authorization_scheme_param
 from jose import JWTError, jwt
 import asyncio
 
@@ -28,13 +29,6 @@ from models import User, Template, user_likes_template, user_favorites_template
 from problem_generator.operations import generate_arithmetic_problems
 from pdf_generator.main import create_pdf_worksheet
 
-import sqlalchemy
-import logging
-
-logging.basicConfig()
-logging.getLogger('sqlalchemy').setLevel(logging.INFO)
-print("Using SQLAlchemy version:", sqlalchemy.__version__)
-
 app = FastAPI(
     title="Teacher's Pet API",
     description="API for generating educational worksheets.",
@@ -43,9 +37,7 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def startup_event():
-    print("Creating tables...")
     await create_db_and_tables()
-    print("Tables created.")
 
 origins = [
     "http://localhost:3000",
@@ -142,6 +134,14 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/token")
 
+async def get_token_optional(request: Request) -> Optional[str]:
+    auth = request.headers.get("Authorization")
+    if auth:
+        scheme, token = get_authorization_scheme_param(auth)
+        if scheme.lower() == "bearer":
+            return token
+    return None
+
 def create_access_token(data: dict, expires_delta: Optional[int] = None):
     to_encode = data.copy()
     if expires_delta:
@@ -180,18 +180,15 @@ async def get_current_user(
         raise credentials_exception
 
 async def get_optional_current_user(
-    token: Optional[str] = Depends(oauth2_scheme),
+    token: Optional[str] = Depends(get_token_optional),
     db: AsyncSession = Depends(get_db)
 ) -> Optional[User]:
     if token is None:
         return None
-
     try:
         user = await get_current_user(token=token, db=db)
         return user
-    except HTTPException as e:
-        return None
-    except Exception as e:
+    except HTTPException:
         return None
     
 async def _handle_template_action(
@@ -317,13 +314,11 @@ async def get_public_templates(
     sort_by: str = Query("created_at", regex="^(created_at|likes_count)$"),
     sort_order: str = Query("desc", regex="^(asc|desc)$"),
     db: AsyncSession = Depends(get_db),
-    current_user: Optional[User] = Security(get_optional_current_user)
+    #current_user: Optional[User] = Depends(get_optional_current_user)
 ):
-    print(f"[API] /templates/public: current_user = {current_user.username if current_user else 'None'}")
-  
     query = select(Template).options(joinedload(Template.owner)).filter(Template.is_public == True)
 
-    if q:
+    if q: 
         search_pattern = f"%{q.lower()}%"
         query = query.filter(
             (func.lower(Template.name).like(search_pattern)) |
