@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, act } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button, Input, Checkbox } from '@/components/ui';
 import Link from 'next/link';
@@ -224,14 +224,14 @@ export default function TemplatesPage() {
                     </p>
                     <div className={styles.authButtons}>
                         <Button
-                            onClick={() => { setShowLoginForm(true); setShowRegisterForm(false); setInlineAuthError(null); }}
+                            onClick={() => { showLoginForm ? setShowLoginForm(false) : setShowLoginForm(true); setShowRegisterForm(false); setInlineAuthError(null); }}
                             variant={showLoginForm ? 'primary' : 'secondary'}
                             className={styles.authButton}
                         >
                             Login
                         </Button>
                         <Button
-                            onClick={() => { setShowRegisterForm(true); setShowLoginForm(false); setInlineAuthError(null); }}
+                            onClick={() => { showRegisterForm ? setShowRegisterForm(false) : setShowRegisterForm(true); setShowLoginForm(false); setInlineAuthError(null); }}
                             variant={showRegisterForm ? 'primary' : 'secondary'}
                             className={styles.authButton}
                         >
@@ -308,17 +308,17 @@ export default function TemplatesPage() {
                             </form>
                         </div>
                     )}
-                    {(!showLoginForm && !showRegisterForm) && (
+                    { (
                         <section className={styles.templateSection}>
                             <h2 className={styles.sectionTitle}>Public Templates</h2>
                             <div className={styles.filterSection}>
                                 <Input
-                                    label="Search"
+                                    label="Search: "
                                     type="text"
                                     value={searchQuery}
                                     onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(0); }}
                                     placeholder="Search by name or description..."
-                                    labelPosition="top"
+                                    labelPosition=""
                                     className={styles.searchInput}
                                 />
                                 <div className={styles.sortOptions}>
@@ -331,14 +331,13 @@ export default function TemplatesPage() {
                                         <option value="created_at">Date Created</option>
                                         <option value="likes_count">Likes</option>
                                     </select>
-                                    <select
-                                        className={styles.sortSelect}
-                                        value={sortOrder}
-                                        onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(0); }}
+                                    <Button
+                                        onClick={() => { sortOrder === 'asc' ? setSortOrder('desc') : setSortOrder('asc'); }}
+                                        variant='order'
+                                        className={styles.authButton}
                                     >
-                                        <option value="desc">Descending</option>
-                                        <option value="asc">Ascending</option>
-                                    </select>
+                                        {sortOrder === 'asc' ? '▲' : '▼'}
+                                    </Button>
                                 </div>
                                 <div className={styles.tagFilters}>
                                     <h3 className={styles.filterTitle}>Filter by Tags:</h3>
@@ -416,9 +415,8 @@ export default function TemplatesPage() {
 
             {isLoggedIn && (
                 <div className={styles.templateDisplayArea}>
-                    {activeTab === 'public' && (
                         <section className={styles.templateSection}>
-                            <h2 className={styles.sectionTitle}>Public Templates</h2>
+                        <h2 className={styles.sectionTitle}>{activeTab[0].toUpperCase()+activeTab.slice(1)} Templates</h2>
                             <div className={styles.filterSection}>
                                 <Input label="Search" type="text" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(0); }} placeholder="Search by name or description..." labelPosition="top" className={styles.searchInput} />
 
@@ -443,49 +441,14 @@ export default function TemplatesPage() {
                                 onDelete={handleDeleteTemplate} 
                                 onLike={handleLikeTemplate} 
                                 onFavorite={handleFavoriteTemplate} 
+                                activeTab={activeTab}
                             />
                             <div className={styles.pagination}>
                                 <Button onClick={() => setCurrentPage(prev => prev - 1)} disabled={currentPage === 0}>Previous</Button>
                                 <Button onClick={() => setCurrentPage(prev => prev + 1)} disabled={publicTemplates.length < templatesPerPage}>Next</Button>
                             </div>
                         </section>
-                    )}
-
-                    {activeTab === 'my' && (
-                        <section className={styles.templateSection}>
-                            <h2 className={styles.sectionTitle}>My Created Templates</h2>
-                            <TemplateListGrid
-                                templates={myTemplates}
-                                isLoading={isLoadingTemplates}
-                                emptyMessage="You haven't created any templates yet."
-                                loadingMessage="Loading your templates..."
-                                authContext={{ user, isLoggedIn }}
-                                onUse={handleUseTemplate}
-                                onEdit={handleEditTemplate}
-                                onDelete={handleDeleteTemplate}
-                                onLike={handleLikeTemplate}
-                                onFavorite={handleFavoriteTemplate} 
-                            />
-                        </section>
-                    )}
-
-                    {activeTab === 'saved' && (
-                        <section className={styles.templateSection}>
-                            <h2 className={styles.sectionTitle}>My Saved/Favorited Templates</h2>
-                            <TemplateListGrid
-                                templates={savedTemplates}
-                                isLoading={isLoadingTemplates}
-                                emptyMessage="You haven't saved any templates yet."
-                                loadingMessage="Loading your saved templates..."
-                                authContext={{ user, isLoggedIn }}
-                                onUse={handleUseTemplate}
-                                onEdit={handleEditTemplate}
-                                onDelete={handleDeleteTemplate}
-                                onLike={handleLikeTemplate}
-                                onFavorite={handleFavoriteTemplate} 
-                            />
-                        </section>
-                    )}
+                    
                 </div>
             )}
         </div>

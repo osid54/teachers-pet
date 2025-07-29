@@ -86,6 +86,7 @@ input, button, textarea, select {
 
 html, body {
   height: 100%;
+  width: 100%;
   @include custom-scrollbar-color (
     $thumb-color: $color-main-500,
     $track-color: $color-main-600,

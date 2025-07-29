@@ -55,6 +55,18 @@
   }
 }
 
+.order {
+  background-color: $color-main-200;
+  color: $color-main-500;
+  border: 1px solid $color-main-300;
+  border-radius: $border-radius-sm;
+  padding: $spacing-xs 0;
+
+  &:hover:not(:disabled) {
+    background-color: darken($color-main-200, 4%);
+  }
+}
+
 .danger {
   background-color: $color-main-800;
   color: $color-main-100;
