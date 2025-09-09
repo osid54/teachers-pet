@@ -143,15 +143,8 @@
 }
 
 .searchInput {
-    grid-column: span 2;
-
-    @include breakpoint-md {
-        grid-column: span 1;
-    }
-
-    @include breakpoint-sm {
-        grid-column: span 1;
-    }
+    place-content: center;
+    width: 100%;
 }
 
 .filterTitle {

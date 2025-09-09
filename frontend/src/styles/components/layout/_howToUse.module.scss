@@ -10,6 +10,8 @@
 
   @include breakpoint-sm {
     @include card-styles($padding: $spacing-xs, $shadow: $box-shadow-sm);
+    width: 90%;
+    margin-bottom: $spacing-sm;
   }
 }
 
