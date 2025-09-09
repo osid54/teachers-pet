@@ -2,6 +2,7 @@
 
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 
 export const AuthContext = createContext(null);
@@ -85,11 +86,13 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem('authUser', JSON.stringify(loggedInUser));
 
             setIsLoggedIn(true);
-            //router.push('/');
+            toast.success(`Welcome, ${loggedInUser.username}!`);
             return true;
         } catch (err) {
             console.error("Login failed:", err.response?.data || err.message);
-            setError(err.response?.data?.detail || "Login failed. Check credentials.");
+            const msg = err.response?.data?.detail || "Login failed. Check credentials.";
+            setError(msg);
+            toast.error(msg);
             return false;
         } finally {
             setIsLoading(false);
@@ -103,6 +106,7 @@ export const AuthProvider = ({ children }) => {
             const response = await authApi.post('/register', { username, password, email });
             console.log("Registration successful:", response.data);
             setError(null);
+            toast.success("Registration successful! Please log in.");
             return true;
         } catch (err) {
             console.error("Registration failed:", err.response?.data || err.message);
@@ -120,6 +124,7 @@ export const AuthProvider = ({ children }) => {
             }
 
             setError(errorMessage);
+            toast.error(errorMessage);
             return false;
         } finally {
             setIsLoading(false);
@@ -133,7 +138,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('authToken');
         localStorage.removeItem('authUser');
         delete authApi.defaults.headers.common['Authorization'];
-        //router.push('/auth/login');
+        toast.success("You have been logged out.");
     };
 
     const authContextValue = {

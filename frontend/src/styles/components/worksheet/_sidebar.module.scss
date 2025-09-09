@@ -6,21 +6,25 @@
   top: 0;
   bottom: 0;
   right: 0;
-  height: calc(100vh - 100px); 
+  height: calc(100vh - 100px);
   width: 380px;
   background-color: $color-main-100;
   box-shadow: -4px 0 10px rgba(0, 0, 0, 0.1);
   padding: $spacing-lg;
   padding-top: 100px;
   overflow-y: hidden;
-  z-index: 900; 
+  z-index: 900;
 
   transform: translateX(0);
   transition: transform 0.3s ease-out;
 
   @include breakpoint-sm {
-    width: 100%; 
-    // transform: translateX(100%); // Start off-screen for mobile (if toggled)
+    padding-top: $spacing-md;
+    width: 88%;
+    height: 25%;
+    top: calc(100vh - 25%);
+    left: 0;
+    overflow-y: auto;
   }
 }
 
@@ -30,6 +34,10 @@
   margin-top: 0;
   margin-bottom: $spacing-xs;
   text-align: center;
+
+  @include breakpoint-sm {
+    font-size: $font-size-lg;
+  }
 }
 
 .section {
@@ -62,16 +70,31 @@
 }
 
 .generateButtonContainer {
-  position: absolute; 
-  bottom: 0;
+  display: flex;
+  gap: 5%;
+  position: absolute;
+  bottom: -100%;
   left: 0;
   right: 0;
   padding: $spacing-lg;
   margin-bottom: $spacing-lg;
-  background-color: $color-main-100; 
-  text-align: center; 
+  background-color: $color-main-100;
+  text-align: center;
+
+  @include breakpoint-sm {
+    margin-bottom: $spacing-sm;
+    padding: $spacing-sm;
+  }
 }
 
 .generateButton {
-  width: 100%;
+  width: 75%;
+  font-size: $font-size-lg;
+  @include breakpoint-sm {
+        font-size: $font-size-sm;
+    }
+}
+
+.saveButton {
+  width: 20%;
 }

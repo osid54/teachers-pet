@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 
 import { AuthProvider } from '@/context/AuthContext';
+import ToastProvider from '@/components/layout/ToastProvider';
 
 import Navbar from '@/components/layout/Navbar';
 
@@ -21,6 +22,7 @@ export default function RootLayout({ children }) {
           <main className="app-content">
             {children}
           </main>
+          <ToastProvider />
         </AuthProvider>
         <Analytics />
         <SpeedInsights />

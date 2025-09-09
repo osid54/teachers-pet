@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import styles from '@/styles/components/worksheet/_sidebar.module.scss';
 import { Button } from '@/components//ui';
 
@@ -82,7 +83,7 @@ export default function WorksheetGenerationSidebar({
 
     const handleSaveTemplateClick = () => {
         if (selectedTopicInstances.length === 0) {
-            alert("Please select at least one topic before saving a template.");
+            toast.error("Please select at least one topic before saving a template.");
             return;
         }
         setShowSaveForm(true);
@@ -124,7 +125,6 @@ export default function WorksheetGenerationSidebar({
             )}
             <h2 className={styles.sidebarTitle}>Customize Worksheet</h2>
 
-            {/* Uniform Settings Section */}
             <section className={styles.section}>
                 <h3 className={styles.sectionTitle}>General Settings</h3>
                 <UniformSettingsForm
@@ -162,9 +162,30 @@ export default function WorksheetGenerationSidebar({
                     onClick={handleSaveTemplateClick}
                     disabled={isSaveButtonDisabled}
                     variant="primary"
-                    className={styles.generateButton}
+                    className={styles.saveButton}
                 >
-                    Save Template
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="32"
+                        height="32"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke="hsla(0, 23%, 97%, 1)"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M4 6a2 2 0 0 1 2-2h8.172a2 2 0 0 1 1.414.586l3.828 3.828A2 2 0 0 1 20 9.828V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"
+                        ></path>
+                        <path
+                            stroke="hsla(0, 23%, 97%, 1)"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M8 4h5v3a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1zM7 15a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v5H7z"
+                        ></path>
+                    </svg>
                 </Button>
             </div>
         </aside>

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useSearchParams, useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 import { useBackendStatus } from '@/hooks/useBackendStatus';
 import { useGenerateWorksheet } from '@/hooks/useGenerateWorksheet';
@@ -49,7 +50,7 @@ function PageContent() {
 
   const handleSaveTemplate = async (templateData) => {
     if (!isLoggedIn) {
-      setSaveTemplateError("You must be logged in to save templates.");
+      toast.error("You must be logged in to save templates.");
       return;
     }
     setIsSavingTemplate(true);
@@ -58,18 +59,19 @@ function PageContent() {
       let response;
       if (currentEditingTemplate && currentEditingTemplate.id) {
         response = await authApi.put(`/templates/${currentEditingTemplate.id}`, templateData);
-        alert("Template updated successfully!");
+        toast.success("Template updated successfully!");
         console.log("Template updated successfully:", response.data);
       } else {
         response = await authApi.post('/templates/', templateData);
-        alert("Template saved successfully!");
+        toast.success("Template saved successfully!");
         console.log("Template saved successfully:", response.data);
-        setCurrentEditingTemplate(null);
       }
+      setCurrentEditingTemplate(null);
     } catch (error) {
       console.error("Failed to save template:", error.response?.data || error.message);
-      setSaveTemplateError(error.response?.data?.detail || "Failed to save template.");
-      throw new Error("Failed to save template."); 
+      const msg = error.response?.data?.detail || "Failed to save template.";
+      setSaveTemplateError(msg);
+      toast.error(msg);
     } finally {
       setIsSavingTemplate(false);
     }
@@ -224,7 +226,7 @@ function PageContent() {
 
   const handleGenerateButtonClick = async (uniformSettingsFromSidebar) => {
     if (selectedTopicInstances.length === 0) {
-      console.warn("Please select at least one topic to generate.");
+      toast.error("Please select at least one topic to generate.");
       return;
     }
     let finalGenerationRequest = {};
@@ -234,7 +236,6 @@ function PageContent() {
       const totalProblemsPerMixedWorksheet = uniformSettingsFromSidebar.pageCount * uniformSettingsFromSidebar.problemsPerPage;
 
       const problemsPerTopicInstance = Math.ceil(totalProblemsPerMixedWorksheet / selectedTopicInstances.length);
-
 
       for (const instance of selectedTopicInstances) {
         const problemRequest = {
@@ -263,7 +264,9 @@ function PageContent() {
       if (allProblemsToMix.length > totalProblemsPerMixedWorksheet) {
         allProblemsToMix = allProblemsToMix.slice(0, totalProblemsPerMixedWorksheet);
       } else if (allProblemsToMix.length < totalProblemsPerMixedWorksheet) {
-        console.warn(`Not enough problems generated (${allProblemsToMix.length}) for desired total (${totalProblemsPerMixedWorksheet}).`);
+        const msg = `Not enough problems generated (${allProblemsToMix.length}) for desired total (${totalProblemsPerMixedWorksheet}). Generating with available problems.`;
+        console.warn(msg); 
+        toast.warn(msg);
       }
 
       finalGenerationRequest = {

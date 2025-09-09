@@ -42,7 +42,7 @@
   &:focus {
     outline: none;
     border-color: $color-main-500;
-    box-shadow: 0 0 0 2px rgba($color-main-500, 0.2);
+    box-shadow: 0 0 0 1px $color-main-300;
   }
 
   &:disabled {
@@ -55,6 +55,11 @@
       background-color: lighten($color-main-400, 15%);
       border-color: lighten($color-main-400, 15%);
     }
+  }
+
+  &:hover:not(:disabled) {
+    background-color: darken($color-main-200, 4%);
+    transform: translateY(-1px);
   }
 }
 
