@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, act } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button, Input, Checkbox } from '@/components/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 
 import styles from '@/styles/pages/_templates.module.scss';
 import authFormStyles from '@/styles/components/ui/_authForms.module.scss';
@@ -84,7 +85,9 @@ export default function TemplatesPage() {
             }
         } catch (err) {
             console.error(`Failed to fetch ${activeTab} templates:`, err.response?.data || err.message);
-            setTemplatesError(err.response?.data?.detail || `Failed to load ${activeTab} templates.`);
+            const msg = err.response?.data?.detail || `Failed to load ${activeTab} templates.`;
+            setTemplatesError(msg);
+            toast.error(msg);
             if (err.response && (err.response.status === 401 || err.response.status === 403)) {
                 logout();
             }
@@ -93,9 +96,6 @@ export default function TemplatesPage() {
         }
     }, [activeTab, isLoggedIn, isMounted, authLoading, authApi, currentPage, searchQuery, selectedTags, sortBy, sortOrder]);
 
-    useEffect(() => {
-        fetchTemplates();
-    }, [fetchTemplates]);
 
     const handleUseTemplate = (template) => {
         if (typeof window !== 'undefined') {
@@ -110,11 +110,12 @@ export default function TemplatesPage() {
 
     const handleLikeTemplate = async (templateId) => {
         if (!isLoggedIn) {
-            alert("Please log in to like templates.");
+            toast.error("Please log in to like templates.");
             return;
         }
         try {
             const response = await authApi.post(`/templates/${templateId}/like`);
+            toast.success(response.data.message);
             if (activeTab === 'public') {
                 setPublicTemplates(prev => prev.map(t =>
                     t.id === templateId ? { ...t, likes_count: response.data.likes_count } : t
@@ -126,42 +127,45 @@ export default function TemplatesPage() {
             }
         } catch (err) {
             console.error("Failed to like template:", err.response?.data || err.message);
-            alert("Failed to like template. " + (err.response?.data?.detail || ""));
+            const msg = err.response?.data?.detail || "Failed to like template.";
+            toast.error(msg);
         }
     };
 
     const handleFavoriteTemplate = async (templateId) => {
         if (!isLoggedIn) {
-            alert("Please log in to favorite templates.");
+            toast.error("Please log in to favorite templates.");
             return;
         }
         try {
             const response = await authApi.post(`/templates/${templateId}/favorite`);
-            alert(response.data.message);
+            toast.success(response.data.message);
             if (activeTab === 'saved') {
                 fetchTemplates();
             }
         } catch (err) {
             console.error("Failed to favorite template:", err.response?.data || err.message);
-            alert("Failed to favorite template. " + (err.response?.data?.detail || ""));
+            const msg = err.response?.data?.detail || "Failed to favorite template.";
+            toast.error(msg);
         }
     };
 
     const handleDeleteTemplate = async (templateId) => {
         if (!isLoggedIn) {
-            alert("Please log in to delete templates.");
+            toast.error("Please log in to delete templates.");
             return;
         }
         try {
             await authApi.delete(`/templates/${templateId}`);
-            alert("Template deleted successfully!"); // Or a toast
+            toast.success("Template deleted successfully!");
             if (activeTab === 'my') {
                 setMyTemplates(prev => prev.filter(t => t.id !== templateId));
             }
             setPublicTemplates(prev => prev.filter(t => t.id !== templateId));
         } catch (err) {
             console.error("Failed to delete template:", err.response?.data || err.message);
-            alert("Failed to delete template. " + (err.response?.data?.detail || ""));
+            const msg = err.response?.data?.detail || "Failed to delete template.";
+            toast.error(msg);
         }
     };
 
@@ -220,14 +224,14 @@ export default function TemplatesPage() {
                     </p>
                     <div className={styles.authButtons}>
                         <Button
-                            onClick={() => { setShowLoginForm(true); setShowRegisterForm(false); setInlineAuthError(null); }}
+                            onClick={() => { showLoginForm ? setShowLoginForm(false) : setShowLoginForm(true); setShowRegisterForm(false); setInlineAuthError(null); }}
                             variant={showLoginForm ? 'primary' : 'secondary'}
                             className={styles.authButton}
                         >
                             Login
                         </Button>
                         <Button
-                            onClick={() => { setShowRegisterForm(true); setShowLoginForm(false); setInlineAuthError(null); }}
+                            onClick={() => { showRegisterForm ? setShowRegisterForm(false) : setShowRegisterForm(true); setShowLoginForm(false); setInlineAuthError(null); }}
                             variant={showRegisterForm ? 'primary' : 'secondary'}
                             className={styles.authButton}
                         >
@@ -304,17 +308,17 @@ export default function TemplatesPage() {
                             </form>
                         </div>
                     )}
-                    {(!showLoginForm && !showRegisterForm) && (
+                    { (
                         <section className={styles.templateSection}>
                             <h2 className={styles.sectionTitle}>Public Templates</h2>
                             <div className={styles.filterSection}>
                                 <Input
-                                    label="Search"
+                                    label="Search: "
                                     type="text"
                                     value={searchQuery}
                                     onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(0); }}
                                     placeholder="Search by name or description..."
-                                    labelPosition="top"
+                                    labelPosition=""
                                     className={styles.searchInput}
                                 />
                                 <div className={styles.sortOptions}>
@@ -327,14 +331,13 @@ export default function TemplatesPage() {
                                         <option value="created_at">Date Created</option>
                                         <option value="likes_count">Likes</option>
                                     </select>
-                                    <select
-                                        className={styles.sortSelect}
-                                        value={sortOrder}
-                                        onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(0); }}
+                                    <Button
+                                        onClick={() => { sortOrder === 'asc' ? setSortOrder('desc') : setSortOrder('asc'); }}
+                                        variant='order'
+                                        className={styles.authButton}
                                     >
-                                        <option value="desc">Descending</option>
-                                        <option value="asc">Ascending</option>
-                                    </select>
+                                        {sortOrder === 'asc' ? '▲' : '▼'}
+                                    </Button>
                                 </div>
                                 <div className={styles.tagFilters}>
                                     <h3 className={styles.filterTitle}>Filter by Tags:</h3>
@@ -412,9 +415,8 @@ export default function TemplatesPage() {
 
             {isLoggedIn && (
                 <div className={styles.templateDisplayArea}>
-                    {activeTab === 'public' && (
                         <section className={styles.templateSection}>
-                            <h2 className={styles.sectionTitle}>Public Templates</h2>
+                        <h2 className={styles.sectionTitle}>{activeTab[0].toUpperCase()+activeTab.slice(1)} Templates</h2>
                             <div className={styles.filterSection}>
                                 <Input label="Search" type="text" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(0); }} placeholder="Search by name or description..." labelPosition="top" className={styles.searchInput} />
 
@@ -439,49 +441,14 @@ export default function TemplatesPage() {
                                 onDelete={handleDeleteTemplate} 
                                 onLike={handleLikeTemplate} 
                                 onFavorite={handleFavoriteTemplate} 
+                                activeTab={activeTab}
                             />
                             <div className={styles.pagination}>
                                 <Button onClick={() => setCurrentPage(prev => prev - 1)} disabled={currentPage === 0}>Previous</Button>
                                 <Button onClick={() => setCurrentPage(prev => prev + 1)} disabled={publicTemplates.length < templatesPerPage}>Next</Button>
                             </div>
                         </section>
-                    )}
-
-                    {activeTab === 'my' && (
-                        <section className={styles.templateSection}>
-                            <h2 className={styles.sectionTitle}>My Created Templates</h2>
-                            <TemplateListGrid
-                                templates={myTemplates}
-                                isLoading={isLoadingTemplates}
-                                emptyMessage="You haven't created any templates yet."
-                                loadingMessage="Loading your templates..."
-                                authContext={{ user, isLoggedIn }}
-                                onUse={handleUseTemplate}
-                                onEdit={handleEditTemplate}
-                                onDelete={handleDeleteTemplate}
-                                onLike={handleLikeTemplate}
-                                onFavorite={handleFavoriteTemplate} 
-                            />
-                        </section>
-                    )}
-
-                    {activeTab === 'saved' && (
-                        <section className={styles.templateSection}>
-                            <h2 className={styles.sectionTitle}>My Saved/Favorited Templates</h2>
-                            <TemplateListGrid
-                                templates={savedTemplates}
-                                isLoading={isLoadingTemplates}
-                                emptyMessage="You haven't saved any templates yet."
-                                loadingMessage="Loading your saved templates..."
-                                authContext={{ user, isLoggedIn }}
-                                onUse={handleUseTemplate}
-                                onEdit={handleEditTemplate}
-                                onDelete={handleDeleteTemplate}
-                                onLike={handleLikeTemplate}
-                                onFavorite={handleFavoriteTemplate} 
-                            />
-                        </section>
-                    )}
+                    
                 </div>
             )}
         </div>

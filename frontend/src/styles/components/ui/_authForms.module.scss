@@ -2,15 +2,18 @@
 @import '@/styles/mixins';
 
 .authFormContainer {
-    @include card-styles();
+    @include card-styles($shadow: 0);
     padding: $spacing-xl;
     margin-bottom: $spacing-xxl;
     display: flex;
     margin-top: auto;
-    margin-bottom: auto; 
+    margin-bottom: auto;
     text-align: center;
     align-items: center;
     justify-content: center;
+    border-color: $color-main-300;
+    border-style: dashed;
+
 }
 
 .authFormTitle {
@@ -23,10 +26,18 @@
     display: flex;
     flex-direction: row;
     gap: $spacing-md;
+
+    @include breakpoint-sm {
+        flex-direction: column;
+    }
 }
 
 .inputField {
     margin-bottom: 0;
+
+    @include breakpoint-sm {
+        justify-content: space-between;
+    }
 }
 
 .errorMessage {
