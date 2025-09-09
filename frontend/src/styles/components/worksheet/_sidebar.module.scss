@@ -73,7 +73,7 @@
   display: flex;
   gap: 5%;
   position: absolute;
-  bottom: -100%;
+  bottom: 0;
   left: 0;
   right: 0;
   padding: $spacing-lg;
@@ -84,6 +84,7 @@
   @include breakpoint-sm {
     margin-bottom: $spacing-sm;
     padding: $spacing-sm;
+      bottom: -100%;
   }
 }
 
