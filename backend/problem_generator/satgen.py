@@ -10,7 +10,8 @@ num_versions = 7
 # Print the imports and helper function
 print(textwrap.dedent("""\
     import random
-
+    import visuals as v   
+                                         
     def _create_question_dict(question_number, question_text, question_type, correct_answer, options=None, rng=None):
         if question_type == 'multiple_choice':
             if rng and options:
