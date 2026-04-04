@@ -24,16 +24,15 @@ def _generate_operation_problem(operation_func, symbol, modifiers):
     round_places = answer_mods.get("round", 0)
     answer = round(raw_answer, round_places)
 
-    formatted_num1 = str(num1)
-    if problem_mods.get("dec", 0) == 0 and isinstance(num1, float):
-        formatted_num1 = str(int(num1))
-
-    formatted_num2 = str(num2)
-    if problem_mods.get("dec", 0) == 0 and isinstance(num2, float):
-        formatted_num2 = str(int(num2))
-
-    question = f"{formatted_num1} {symbol} {formatted_num2} = "
-    return problems.MathProblem(question, answer)
+    question_str = f"{num1} {symbol} {num2} ="
+    
+    return problems.MathProblem(
+        question=question_str, 
+        answer=answer, 
+        num1=num1, 
+        num2=num2, 
+        symbol=symbol
+    )
 
 def addition(modifiers):
     return _generate_operation_problem(lambda a, b: a + b, "+", modifiers)

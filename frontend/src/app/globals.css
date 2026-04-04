@@ -1,0 +1,69 @@
+@import "tailwindcss";
+
+@config "../../tailwind.config.js";
+
+@layer base {
+  @font-face {
+    font-family: 'Motley Forces';
+    src: url('/fonts/MotleyForces.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    
+    @apply bg-main-200 text-main-500 font-sans text-base;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-sans text-main-700 font-bold mt-0 mb-0;
+  }
+
+  h1 { @apply text-xl; }
+  h2 { @apply text-h1; }
+  h3 { @apply text-h2; }
+  h4 { @apply text-h3; }
+
+  p { @apply mb-sm; }
+
+  a {
+    @apply text-main-100 no-underline hover:underline;
+  }
+
+  ul, ol {
+    @apply m-0 p-0 list-none;
+  }
+}
+
+@layer components {
+  .app-container {
+    @apply min-h-screen flex flex-col max-w-[1600px] mx-auto p-xl sm:p-md;
+  }
+
+  .app-content {
+    @apply max-w-[1600px] mx-auto p-xl sm:p-md flex-grow mt-[90px];
+  }
+}
+
+@layer utilities {
+  html, body {
+    scrollbar-color: hsla(0, 10%, 71%, 1) hsla(0, 8%, 45%, 1);
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsla(0, 8%, 45%, 1);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsla(0, 10%, 71%, 1);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsla(0, 10%, 23%, 1);
+  }
+}

@@ -14,7 +14,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.security.utils import get_authorization_scheme_param
 from jose import JWTError, jwt
 import asyncio
-
+import json
 import io
 import os
 import sys
@@ -544,57 +544,62 @@ async def get_problems_endpoint(request_data: SectionRequest):
 
 @app.post("/generate-worksheet")
 async def generate_worksheet_endpoint(requests_list: list[SectionRequest]):
-    """
-    Generates a customized math worksheet as a PDF from multiple sections.
-    Can handle pre-mixed problems from the frontend.
-    """
+    import json # Ensure this is imported at the top of main.py
 
     all_problems_data_for_pdf = []
     overall_include_answer_key = False
 
     for request_data in requests_list:
-        if request_data.topic == ["mixed"] and request_data.mixed_problems_data is not None:
-            section_subject = request_data.subject
-            section_topic_name = "Mixed Problems"
-            problems_for_section = request_data.mixed_problems_data
+        # --- DEFENSIVE CHECK: Ensure modifiers is a dict ---
+        modifiers = request_data.modifiers
+        if isinstance(modifiers, str):
+            try:
+                modifiers = json.loads(modifiers)
+            except:
+                modifiers = {}
+
+        # PATH A: Mixed Problems
+        if request_data.topic == ["mixed"] and request_data.mixed_problems_data:
+            problems_for_section = []
+            for p in request_data.mixed_problems_data:
+                # --- DEFENSIVE CHECK: Parse problem if it's a string ---
+                if isinstance(p, str):
+                    try:
+                        problems_for_section.append(json.loads(p))
+                    except:
+                        continue 
+                else:
+                    problems_for_section.append(p)
 
             all_problems_data_for_pdf.append({
                 "type": "section_header",
-                "subject": section_subject,
-                "topic_name": section_topic_name,
+                "subject": request_data.subject,
+                "topic_name": "Mixed Problems",
                 "page_count": request_data.page_count,
                 "problems_per_page": request_data.problems_per_page,
-                "modifiers": request_data.modifiers
+                "modifiers": modifiers
             })
             all_problems_data_for_pdf.extend(problems_for_section)
 
+        # PATH B: Fresh Generation
         else:
-            subject = request_data.subject
-            topic_ids = request_data.topic
-            page_count = request_data.page_count
-            modifiers = request_data.modifiers
-            problems_per_page = request_data.problems_per_page
-
-            total_problems_for_section = page_count * problems_per_page
-
-            problems_objects_for_section = []
-            if subject == 'Arithmetic':
-                problems_objects_for_section = generate_arithmetic_problems(
-                    topic_ids,
-                    total_problems_for_section,
-                    modifiers
-                )
-            else:
-                raise HTTPException(status_code=400, detail=f"Subject '{subject}' not supported.")
-
-            section_problems_data = [p.to_dict() for p in problems_objects_for_section]
+            total_problems = request_data.page_count * request_data.problems_per_page
+            
+            # Pass our sanitized 'modifiers' dict to your operations logic
+            problems_objects = generate_arithmetic_problems(
+                request_data.topic, 
+                total_problems, 
+                modifiers
+            )
+            
+            section_problems_data = [p.to_dict() for p in problems_objects]
 
             all_problems_data_for_pdf.append({
                 "type": "section_header",
-                "subject": subject,
-                "topic_name": ", ".join(t.capitalize() for t in topic_ids),
-                "page_count": page_count,
-                "problems_per_page": problems_per_page,
+                "subject": request_data.subject,
+                "topic_name": ", ".join(t.capitalize() for t in request_data.topic),
+                "page_count": request_data.page_count,
+                "problems_per_page": request_data.problems_per_page,
                 "modifiers": modifiers
             })
             all_problems_data_for_pdf.extend(section_problems_data)
@@ -603,20 +608,23 @@ async def generate_worksheet_endpoint(requests_list: list[SectionRequest]):
             overall_include_answer_key = True
 
     try:
+        # Generate the PDF
         pdf_buffer = create_pdf_worksheet(
             all_problems_data_for_pdf,
             overall_include_answer_key,
         )
+        pdf_buffer.seek(0)
 
         return StreamingResponse(
-            io.BytesIO(pdf_buffer.getvalue()),
+            pdf_buffer, 
             media_type="application/pdf",
             headers={"Content-Disposition": "attachment; filename=worksheet.pdf"}
         )
 
-    except HTTPException as e:
-        raise e
     except Exception as e:
+        # If it still fails, this will print the EXACT item that caused the error
+        # to your terminal console so you can see if it's a string or dict.
+        print(f"DEBUG: Error processing PDF data list. Culprit likely in here: {all_problems_data_for_pdf[:2]}")
         raise HTTPException(status_code=500, detail=f"Failed to generate worksheet: {str(e)}")
     
 if __name__ == "__main__":

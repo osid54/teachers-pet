@@ -1,30 +1,21 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, act } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button, Input, Checkbox } from '@/components/ui';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-
-import styles from '@/styles/pages/_templates.module.scss';
-import authFormStyles from '@/styles/components/ui/_authForms.module.scss';
-
 import TemplateListGrid from '@/components/templates/TemplateListGrid';
-
 import { PREDEFINED_TAGS } from '@/lib/constants';
 
 export default function TemplatesPage() {
     const {
-        user,
-        isLoggedIn,
-        isLoading: authLoading,
-        error: authError,
-        login,
-        register,
-        logout,
-        authApi
-    } = useAuth(); const [activeTab, setActiveTab] = useState('public');
+        user, isLoggedIn, isLoading: authLoading, error: authError,
+        login, register, logout, authApi
+    } = useAuth();
+
+    const [activeTab, setActiveTab] = useState('public');
     const [isMounted, setIsMounted] = useState(false);
     const router = useRouter();
 
@@ -39,8 +30,6 @@ export default function TemplatesPage() {
     const [inlineAuthError, setInlineAuthError] = useState(null);
 
     const [publicTemplates, setPublicTemplates] = useState([]);
-    const [myTemplates, setMyTemplates] = useState([]);
-    const [savedTemplates, setSavedTemplates] = useState([]);
     const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
     const [templatesError, setTemplatesError] = useState(null);
 
@@ -51,9 +40,7 @@ export default function TemplatesPage() {
     const [currentPage, setCurrentPage] = useState(0);
     const templatesPerPage = 10;
 
-    useEffect(() => {
-        setIsMounted(true);
-    }, [isLoggedIn]);
+    useEffect(() => { setIsMounted(true); }, [isLoggedIn]);
 
     const fetchTemplates = useCallback(async () => {
         if (!isMounted || authLoading || !authApi) {
@@ -75,14 +62,13 @@ export default function TemplatesPage() {
                     sort_order: sortOrder,
                 };
                 response = await authApi.get('/templates/public', { params });
-                setPublicTemplates(response.data);
             } else if (activeTab === 'my' && isLoggedIn) {
                 response = await authApi.get('/templates/me');
-                setMyTemplates(response.data);
             } else if (activeTab === 'saved' && isLoggedIn) {
                 response = await authApi.get('/templates/saved');
-                setSavedTemplates(response.data);
             }
+
+            setPublicTemplates(response.data);
         } catch (err) {
             console.error(`Failed to fetch ${activeTab} templates:`, err.response?.data || err.message);
             const msg = err.response?.data?.detail || `Failed to load ${activeTab} templates.`;
@@ -210,247 +196,142 @@ export default function TemplatesPage() {
     };
 
     if (!isMounted) {
-        return <div className={styles.loadingMessage}>Loading templates...</div>;
+        return <div className="text-center p-xxl text-lg text-main-500 m-0">Loading templates...</div>;
     }
 
     return (
-        <div className={styles.templatesContainer}>
-            <h1 className={styles.pageTitle}>Templates</h1>
+        <div className="flex flex-col gap-lg max-w-[1200px] mx-auto p-md">
+            <h1 className="text-xl font-bold text-main-700 text-center mb-md">Templates</h1>
 
             {!isLoggedIn ? (
-                <div className={styles.authPromptSection}>
-                    <p className={styles.authMessage}>
+                <div className="flex flex-col items-center gap-md mb-xxl">
+                    <p className="text-base text-main-500 text-center max-w-2xl">
                         Log in or register to save your own templates, organize your favorites, and access personalized features!
                     </p>
-                    <div className={styles.authButtons}>
+                    <div className="flex gap-md">
                         <Button
-                            onClick={() => { showLoginForm ? setShowLoginForm(false) : setShowLoginForm(true); setShowRegisterForm(false); setInlineAuthError(null); }}
+                            onClick={() => { setShowLoginForm(!showLoginForm); setShowRegisterForm(false); setInlineAuthError(null); }}
                             variant={showLoginForm ? 'primary' : 'secondary'}
-                            className={styles.authButton}
                         >
                             Login
                         </Button>
                         <Button
-                            onClick={() => { showRegisterForm ? setShowRegisterForm(false) : setShowRegisterForm(true); setShowLoginForm(false); setInlineAuthError(null); }}
+                            onClick={() => { setShowRegisterForm(!showRegisterForm); setShowLoginForm(false); setInlineAuthError(null); }}
                             variant={showRegisterForm ? 'primary' : 'secondary'}
-                            className={styles.authButton}
                         >
                             Register
                         </Button>
                     </div>
 
-                    {inlineAuthError && <p className={authFormStyles.errorMessage}>{inlineAuthError}</p>}
+                    {inlineAuthError && <p className="text-main-600 text-sm mt-xs mb-md font-medium">{inlineAuthError}</p>}
 
-                    {showLoginForm && (
-                        <div className={authFormStyles.authFormContainer}>
-                            <form onSubmit={handleLoginSubmit} className={authFormStyles.form}>
-                                <Input
-                                    label="Username"
-                                    type="text"
-                                    value={loginUsername}
-                                    onChange={(e) => setLoginUsername(e.target.value)}
-                                    required
-                                    className={authFormStyles.inputField}
-                                />
-                                <Input
-                                    label="Password"
-                                    type="password"
-                                    value={loginPassword}
-                                    onChange={(e) => setLoginPassword(e.target.value)}
-                                    required
-                                    className={authFormStyles.inputField}
-                                />
-                                <Button type="submit" isLoading={authLoading} disabled={authLoading} className={authFormStyles.submitButton}>
-                                    Login
+                    {(showLoginForm || showRegisterForm) && (
+                        <div className="bg-main-100 rounded-lg p-xl shadow-sm border-2 border-dashed border-main-300 w-full max-w-md mt-md">
+                            <form
+                                onSubmit={showLoginForm ? handleLoginSubmit : handleRegisterSubmit}
+                                className="flex flex-col gap-md"
+                            >
+                                <Input label="Username" value={showLoginForm ? loginUsername : registerUsername} onChange={(e) => showLoginForm ? setLoginUsername(e.target.value) : setRegisterUsername(e.target.value)} required />
+                                {!showLoginForm && <Input label="Email" type="email" value={registerEmail} onChange={(e) => setRegisterEmail(e.target.value)} required />}
+                                <Input label="Password" type="password" value={showLoginForm ? loginPassword : registerPassword} onChange={(e) => showLoginForm ? setLoginPassword(e.target.value) : setRegisterPassword(e.target.value)} required />
+                                {!showLoginForm && <Input label="Confirm Password" type="password" value={registerConfirmPassword} onChange={(e) => setRegisterConfirmPassword(e.target.value)} required />}
+                                <Button type="submit" isLoading={authLoading} className="mt-xs">
+                                    {showLoginForm ? 'Login' : 'Register'}
                                 </Button>
                             </form>
                         </div>
-                    )}
-
-                    {showRegisterForm && (
-                        <div className={authFormStyles.authFormContainer}>
-                            <form onSubmit={handleRegisterSubmit} className={authFormStyles.form}>
-                                <Input
-                                    label="Username"
-                                    type="text"
-                                    value={registerUsername}
-                                    onChange={(e) => setRegisterUsername(e.target.value)}
-                                    required
-                                    className={authFormStyles.inputField}
-                                />
-                                <Input
-                                    label="Email"
-                                    type="email"
-                                    value={registerEmail}
-                                    onChange={(e) => setRegisterEmail(e.target.value)}
-                                    required
-                                    className={authFormStyles.inputField}
-                                />
-                                <Input
-                                    label="Password"
-                                    type="password"
-                                    value={registerPassword}
-                                    onChange={(e) => setRegisterPassword(e.target.value)}
-                                    required
-                                    className={authFormStyles.inputField}
-                                />
-                                <Input
-                                    label="Confirm Password"
-                                    type="password"
-                                    value={registerConfirmPassword}
-                                    onChange={(e) => setRegisterConfirmPassword(e.target.value)}
-                                    required
-                                    className={authFormStyles.inputField}
-                                />
-                                <Button type="submit" isLoading={authLoading} disabled={authLoading} className={authFormStyles.submitButton}>
-                                    Register
-                                </Button>
-                            </form>
-                        </div>
-                    )}
-                    { (
-                        <section className={styles.templateSection}>
-                            <h2 className={styles.sectionTitle}>Public Templates</h2>
-                            <div className={styles.filterSection}>
-                                <Input
-                                    label="Search: "
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(0); }}
-                                    placeholder="Search by name or description..."
-                                    labelPosition=""
-                                    className={styles.searchInput}
-                                />
-                                <div className={styles.sortOptions}>
-                                    <h3 className={styles.filterTitle}>Sort By:</h3>
-                                    <select
-                                        className={styles.sortSelect}
-                                        value={sortBy}
-                                        onChange={(e) => { setSortBy(e.target.value); setCurrentPage(0); }}
-                                    >
-                                        <option value="created_at">Date Created</option>
-                                        <option value="likes_count">Likes</option>
-                                    </select>
-                                    <Button
-                                        onClick={() => { sortOrder === 'asc' ? setSortOrder('desc') : setSortOrder('asc'); }}
-                                        variant='order'
-                                        className={styles.authButton}
-                                    >
-                                        {sortOrder === 'asc' ? '▲' : '▼'}
-                                    </Button>
-                                </div>
-                                <div className={styles.tagFilters}>
-                                    <h3 className={styles.filterTitle}>Filter by Tags:</h3>
-                                    <div className={styles.tagCheckboxes}>
-                                        {PREDEFINED_TAGS.map(tag => (
-                                            <Checkbox
-                                                key={tag}
-                                                label={tag}
-                                                checked={selectedTags.includes(tag)}
-                                                onChange={(e) => {
-                                                    const isChecked = e.target.checked;
-                                                    setSelectedTags(prev =>
-                                                        isChecked ? [...prev, tag] : prev.filter(t => t !== tag)
-                                                    );
-                                                    setCurrentPage(0);
-                                                }}
-                                                labelPosition="inline"
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <TemplateListGrid
-                                templates={publicTemplates}
-                                isLoading={isLoadingTemplates}
-                                emptyMessage={searchQuery || selectedTags.length > 0 ? "No templates match your search." : "No public templates found."}
-                                loadingMessage="Loading public templates..."
-                                authContext={{ user: null, isLoggedIn: false }}
-                                onUse={handleUseTemplate}
-                                onEdit={handleEditTemplate}
-                                onLike={handleLikeTemplate}
-                                onFavorite={handleFavoriteTemplate}
-                            />
-                            <div className={styles.pagination}>
-                                <Button onClick={() => setCurrentPage(prev => prev - 1)} disabled={currentPage === 0}>Previous</Button>
-                                <Button onClick={() => setCurrentPage(prev => prev + 1)} disabled={publicTemplates.length < templatesPerPage}>Next</Button>
-                            </div>
-                        </section>
                     )}
                 </div>
             ) : (
-                <div className={styles.loggedInTabs}>
-                    <Button
-                        onClick={() => setActiveTab('public')}
-                        variant={activeTab === 'public' ? 'primary' : 'secondary'}
-                        className={styles.tabButton}
-                    >
-                        Public Templates
-                    </Button>
-                    <Button
-                        onClick={() => setActiveTab('my')}
-                        variant={activeTab === 'my' ? 'primary' : 'secondary'}
-                        className={styles.tabButton}
-                    >
-                        My Templates
-                    </Button>
-                    <Button
-                        onClick={() => setActiveTab('saved')}
-                        variant={activeTab === 'saved' ? 'primary' : 'secondary'}
-                        className={styles.tabButton}
-                    >
-                        Saved Templates
-                    </Button>
-                    <Link href="/" passHref legacyBehavior>
-                            <Button as="a" variant="secondary" className={styles.createTemplateButton}>
-                            Create New Template
+                <div className="flex flex-wrap justify-center gap-md mb-lg">
+                    {['public', 'my', 'saved'].map((tab) => (
+                        <Button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            variant={activeTab === tab ? 'primary' : 'secondary'}
+                        >
+                            {tab.charAt(0).toUpperCase() + tab.slice(1)} Templates
                         </Button>
-                    </Link>
-                        <Button onClick={logout} variant="secondary" className={styles.tabButton}>
-                        Logout
-                    </Button>
+                    ))}
+                        <Link href="/">
+                            <Button variant="secondary">
+                                Create New Template
+                            </Button>
+                        </Link>
+                    <Button onClick={logout} variant="secondary">Logout</Button>
                 </div>
             )}
 
-            {isLoggedIn && (
-                <div className={styles.templateDisplayArea}>
-                        <section className={styles.templateSection}>
-                        <h2 className={styles.sectionTitle}>{activeTab[0].toUpperCase()+activeTab.slice(1)} Templates</h2>
-                            <div className={styles.filterSection}>
-                                <Input label="Search" type="text" value={searchQuery} onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(0); }} placeholder="Search by name or description..." labelPosition="top" className={styles.searchInput} />
+            <section className="bg-main-100 rounded-lg p-lg shadow-sm">
+                <h2 className="text-h2 text-main-600 mb-lg border-b border-main-300 pb-xs capitalize">
+                    {activeTab} Templates
+                </h2>
 
-                                <div className={styles.sortOptions}>
-                                    <h3 className={styles.filterTitle}>Sort By:</h3>
-                                    <select className={styles.sortSelect} value={sortBy} onChange={(e) => { setSortBy(e.target.value); setCurrentPage(0); }}><option value="created_at">Date Created</option><option value="likes_count">Likes</option></select>
-                                    <select className={styles.sortSelect} value={sortOrder} onChange={(e) => { setSortOrder(e.target.value); setCurrentPage(0); }}><option value="desc">Descending</option><option value="asc">Ascending</option></select>
-                                </div>
-                                <div className={styles.tagFilters}>
-                                    <h3 className={styles.filterTitle}>Filter by Tags:</h3>
-                                    <div className={styles.tagCheckboxes}>{PREDEFINED_TAGS.map(tag => (<Checkbox key={tag} label={tag} checked={selectedTags.includes(tag)} onChange={(e) => { const isChecked = e.target.checked; setSelectedTags(prev => isChecked ? [...prev, tag] : prev.filter(t => t !== tag)); setCurrentPage(0); }} labelPosition="inline" />))}</div>
-                                </div>
+                <div className="flex flex-col gap-lg mb-xl bg-main-200 p-md rounded-md">
+                    <Input
+                        label="Search"
+                        value={searchQuery}
+                        onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(0); }}
+                        placeholder="Search by name or description..."
+                        labelPosition="top"
+                    />
+
+                    <div className="flex flex-wrap items-end gap-md">
+                        <div className="flex flex-col gap-xxs">
+                            <h3 className="text-sm font-medium text-main-500">Sort By:</h3>
+                            <div className="flex gap-xs">
+                                <select
+                                    className="border border-main-300 rounded-sm bg-main-100 p-xs text-main-600"
+                                    value={sortBy}
+                                    onChange={(e) => { setSortBy(e.target.value); setCurrentPage(0); }}
+                                >
+                                    <option value="created_at">Date Created</option>
+                                    <option value="likes_count">Likes</option>
+                                </select>
+                                <Button onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')} variant="order">
+                                    {sortOrder === 'asc' ? '▲' : '▼'}
+                                </Button>
                             </div>
-                            <TemplateListGrid 
-                                templates={publicTemplates} 
-                                isLoading={isLoadingTemplates} 
-                                emptyMessage={searchQuery || selectedTags.length > 0 ? "No templates match your search." : "No public templates found yet."} 
-                                loadingMessage="Loading public templates..." 
-                                authContext={{ user, isLoggedIn }} 
-                                onUse={handleUseTemplate} 
-                                onEdit={handleEditTemplate}
-                                onDelete={handleDeleteTemplate} 
-                                onLike={handleLikeTemplate} 
-                                onFavorite={handleFavoriteTemplate} 
-                                activeTab={activeTab}
-                            />
-                            <div className={styles.pagination}>
-                                <Button onClick={() => setCurrentPage(prev => prev - 1)} disabled={currentPage === 0}>Previous</Button>
-                                <Button onClick={() => setCurrentPage(prev => prev + 1)} disabled={publicTemplates.length < templatesPerPage}>Next</Button>
+                        </div>
+
+                        <div className="flex flex-col gap-xxs flex-grow">
+                            <h3 className="text-sm font-medium text-main-500">Filter by Tags:</h3>
+                            <div className="flex flex-wrap gap-sm bg-main-100 p-sm rounded-sm border border-main-300">
+                                {PREDEFINED_TAGS.map(tag => (
+                                    <Checkbox
+                                        key={tag}
+                                        label={tag}
+                                        checked={selectedTags.includes(tag)}
+                                        onChange={(e) => {
+                                            const isChecked = e.target.checked;
+                                            setSelectedTags(prev => isChecked ? [...prev, tag] : prev.filter(t => t !== tag));
+                                            setCurrentPage(0);
+                                        }}
+                                    />
+                                ))}
                             </div>
-                        </section>
-                    
+                        </div>
+                    </div>
                 </div>
-            )}
+
+                <TemplateListGrid
+                    templates={publicTemplates}
+                    isLoading={isLoadingTemplates}
+                    emptyMessage="No templates found."
+                    authContext={{ user, isLoggedIn }}
+                    onUse={handleUseTemplate}
+                    onEdit={handleEditTemplate}
+                    onDelete={handleDeleteTemplate}
+                    onLike={handleLikeTemplate}
+                    onFavorite={handleFavoriteTemplate}
+                    activeTab={activeTab}
+                />
+
+                <div className="flex justify-center gap-md mt-xl">
+                    <Button onClick={() => setCurrentPage(prev => prev - 1)} disabled={currentPage === 0}>Previous</Button>
+                    <Button onClick={() => setCurrentPage(prev => prev + 1)} disabled={publicTemplates.length < templatesPerPage}>Next</Button>
+                </div>
+            </section>
         </div>
     );
 }

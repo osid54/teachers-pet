@@ -2,39 +2,25 @@
 
 import React, { useState, useEffect } from 'react';
 import { Input, Checkbox } from '@/components/ui';
-import styles from '@/styles/components/worksheet/_uniformSettingsForm.module.scss';
-
-/*
- * @param {object} props - Component props.
- * @param {object} props.settings - Current uniform settings object.
- * @param {function} props.onChange - Callback when any setting changes.
- */
 
 export default function UniformSettingsForm({ settings, onChange, mode }) {
     const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => { setIsMounted(true); }, []);
+    if (!isMounted) return null;
 
-    useEffect(() => {
-        setIsMounted(true);
-    }, []);
+    const gridCols = mode === 'multi'
+        ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-4"
+        : "grid-cols-1 sm:grid-cols-2 md:grid-cols-3";
 
-    if (!isMounted) {
-        return null;
-    }
-    
     return (
-        <div className={`${styles.form} ${mode === 'multi' ? styles.multi : ''}`}>
+        <div className={`grid ${gridCols} gap-4 items-start p-sm`}>
             <Input
                 label={settings.mixedProblems ? "Page Count" : "Pages Per Subject"}
                 type="number"
                 name="pageCount"
                 value={settings.pageCount}
                 onChange={onChange}
-                min={1}
-                max={50}
-                step={1}
-                maxDigits={2}
-                labelPosition="top"
-                className={styles.inputField}
+                min={1} max={50} maxDigits={2} labelPosition="top"
             />
             <Input
                 label="Problems Per Page"
@@ -42,12 +28,7 @@ export default function UniformSettingsForm({ settings, onChange, mode }) {
                 name="problemsPerPage"
                 value={settings.problemsPerPage}
                 onChange={onChange}
-                min={1}
-                max={50}
-                step={1}
-                maxDigits={2}
-                labelPosition="top"
-                className={styles.inputField}
+                min={1} max={50} maxDigits={2} labelPosition="top"
             />
             {mode === 'multi' && (
                 <Checkbox
@@ -56,16 +37,14 @@ export default function UniformSettingsForm({ settings, onChange, mode }) {
                     checked={settings.mixedProblems}
                     onChange={onChange}
                     labelPosition="top"
-                    className={styles.checkboxField}
                 />
             )}
             <Checkbox
-                label={<>Answer<br/>Key</>}
+                label={<>Answer<br />Key</>}
                 name="includeAnswerKey"
                 checked={settings.includeAnswerKey}
                 onChange={onChange}
                 labelPosition="top"
-                className={styles.checkboxField}
             />
         </div>
     );

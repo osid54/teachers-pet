@@ -17,8 +17,6 @@ import HowToUse from '@/components/layout/HowToUse';
 import { Button } from '@/components/ui';
 import Sidebar from '@/components/worksheet/Sidebar';
 
-import styles from '@/styles/pages/_home.module.scss';
-
 function PageContent() {
   const { statusMessage, isLoading: statusLoading, error: statusError } = useBackendStatus();
   const { generate, loading: generateLoading, error: generateError, pdfUrl } = useGenerateWorksheet();
@@ -296,36 +294,38 @@ function PageContent() {
   };
 
   return (
-    <div className={styles.container}>
-      <div className={styles.mainContent}>
-        <h1 className={styles.pageTitle}>Generate Your Worksheet</h1>
+    <div className="flex w-full sm:flex-row sm:gap-xl flex-col gap-md">
+
+      <div className="grow bg-main-300 sm:max-w-[calc(100%-460px)] max-w-full mr-0 rounded-lg shadow-lg p-md sm:p-xl">
+        <h1 className="text-h3 sm:text-xl font-bold text-main-900 text-center ">
+          Generate Your Worksheet
+        </h1>
+
         <HowToUse />
-        <div className={styles.modeSelection}>
+
+        <div className="flex justify-center gap-md ">
           <Button
-            onClick={() => {
-              setTopicSelectionMode('single');
-              setSelectedTopicInstances([]);
-            }}
+            onClick={() => { setTopicSelectionMode('single'); setSelectedTopicInstances([]); }}
             variant={topicSelectionMode === 'single' ? 'primary' : 'secondary'}
-            className={styles.modeButton}
+            className="min-w-[150px]"
           >
             Single Topic
           </Button>
           <Button
-            onClick={() => {
-              setTopicSelectionMode('multi');
-            }}
+            onClick={() => setTopicSelectionMode('multi')}
             variant={topicSelectionMode === 'multi' ? 'primary' : 'secondary'}
-            className={styles.modeButton}
+            className="min-w-[150px]"
           >
             Multi Topic
           </Button>
         </div>
-        <div className={styles.curriculumGrid}>
+
+        <div className="flex flex-col gap-lg">
           {curriculumData.map(subjectData => (
             <React.Fragment key={subjectData.subject}>
               <SubjectHeader title={subjectData.subject} />
-              <div className={styles.topicCardsGrid}>
+
+              <div className="grid sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-md justify-items-center grid-cols-[repeat(auto-fit,minmax(120px,1fr))]">
                 {subjectData.topics.map(topic => {
                   const isCardSelected = selectedTopicInstances.some(inst => inst.topicId === topic.id);
                   return (
@@ -342,6 +342,9 @@ function PageContent() {
           ))}
         </div>
       </div>
+
+      <div className='h-[30vh] sm:hidden'/>
+
       {isMounted && (
         <Sidebar
           mode={topicSelectionMode}

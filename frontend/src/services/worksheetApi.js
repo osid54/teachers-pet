@@ -41,21 +41,16 @@ export const fetchProblemsList = async (requestData) => {
 export const generateWorksheetPDF = async (generationRequests) => {
   try {
     const response = await api.post('/generate-worksheet', generationRequests, {
-      responseType: 'blob',
+      responseType: 'blob', // Keep this for successful PDF returns
     });
     return response.data;
   } catch (error) {
-    console.error("Error generating worksheet:", error);
-    if (error.response && error.response.data) {
-        const errorBlob = error.response.data;
-        const errorText = await errorBlob.text();
-        try {
-            const errorJson = JSON.parse(errorText);
-            throw new Error(errorJson.detail || "Unknown error generating worksheet.");
-        } catch (parseError) {
-            throw new Error(errorText || "Unknown error generating worksheet.");
-        }
+    if (error.response && error.response.data instanceof Blob) {
+      // Convert the error blob back to text to see the real message
+      const errorText = await error.response.data.text();
+      const errorJson = JSON.parse(errorText);
+      throw new Error(errorJson.detail || "Server failed to generate worksheet.");
     }
-    throw new Error('Failed to generate worksheet due to network or server error.');
+    throw error;
   }
 };

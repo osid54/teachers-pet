@@ -46,15 +46,15 @@ export const AuthProvider = ({ children }) => {
                     setUser(response.data);
                     setToken(storedToken);
                     setIsLoggedIn(true);
-                    setError(null);
                 } catch (err) {
-                    console.error("Token verification failed:", err);
-                    logout();
-                    setError("Session expired or invalid. Please log in again.");
+                    if (err.response?.status === 401) {
+                        logout(true); 
+                    } else {
+                        console.error("Token verification failed:", err);
+                        logout(true);
+                    }
                 }
             } else {
-                setUser(null);
-                setToken(null);
                 setIsLoggedIn(false);
             }
             setIsLoading(false);
@@ -131,14 +131,17 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const logout = () => {
+    const logout = (silent = false) => {
         setUser(null);
         setToken(null);
         setIsLoggedIn(false);
         localStorage.removeItem('authToken');
         localStorage.removeItem('authUser');
         delete authApi.defaults.headers.common['Authorization'];
-        toast.success("You have been logged out.");
+
+        if (!silent) {
+            toast.success("You have been logged out.");
+        }
     };
 
     const authContextValue = {

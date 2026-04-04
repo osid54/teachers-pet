@@ -1,17 +1,7 @@
 'use client';
 
 import React from 'react';
-import styles from '@/styles/components/worksheet/_selectedTopicInstance.module.scss';
 import { Button, Input, Checkbox } from '@/components/ui';
-
-/*
- * @param {object} props - Component props.
- * @param {object} props.instance - The selected topic instance object.
- * @param {'single' | 'multi'} props.mode - Current topic selection mode.
- * @param {function} props.onModifierChange - Callback to update modifiers for this instance.
- * @param {function} props.onAddInstance - Callback to add another instance of this topic.
- * @param {function} props.onRemove - Callback to remove this instance.
- */
 
 export default function SelectedTopicInstance({
     instance,
@@ -52,70 +42,24 @@ export default function SelectedTopicInstance({
     };
 
     return (
-        <div className={styles.instanceCard}>
-            <div className={styles.header}>
-                <h4 className={styles.topicName}>{instance.topicName}</h4>
-                <div className={styles.actions}>
+        <div className="bg-main-100 rounded-md m-sm p-sm shadow-sm flex flex-col gap-md relative border border-dashed border-main-500">
+            <div className="flex justify-between items-center flex-wrap gap-sm">
+                <h4 className="text-base text-main-500 m-0 font-semibold grow text-center pb-xxs border-b border-main-300">
+                    {instance.topicName}
+                </h4>
+                <div className="flex gap-xs">
                     {mode === 'multi' && (
-                        <Button
-                            onClick={() => onAddInstance(instance)}
-                            variant="primary"
-                            className={styles.actionButton}
-                        >
-                            +
-                        </Button>
+                        <Button onClick={() => onAddInstance(instance)} variant="primary" className="p-xs w-[30px] h-[30px] text-sm">+</Button>
                     )}
-                    <Button
-                        onClick={() => onRemove(instance.id)}
-                        variant="primary"
-                        className={styles.actionButton}
-                    >
-                        x
-                    </Button>
+                    <Button onClick={() => onRemove(instance.id)} variant="primary" className="p-xs w-[30px] h-[30px] text-sm">x</Button>
                 </div>
             </div>
 
-            <div className={styles.modifiersForm}>
-                <Input
-                    label="Digits"
-                    type="number"
-                    name="problem.digits"
-                    value={instance.modifiers.problem.digits}
-                    onChange={handleModifierChange}
-                    min={1}
-                    max={5}
-                    maxDigits={1}
-                    labelPosition='inline'
-                />
-                <Checkbox
-                    label="Allow Negatives"
-                    name="problem.neg"
-                    checked={instance.modifiers.problem.neg === 1 || instance.modifiers.problem.neg === true}
-                    onChange={handleModifierChange}
-                    labelPosition='inline'
-                />
-                <Input
-                    label="Decimals"
-                    type="number"
-                    name="problem.dec"
-                    value={instance.modifiers.problem.dec}
-                    onChange={handleModifierChange}
-                    min={0}
-                    max={5}
-                    maxDigits={1}
-                    labelPosition='inline'
-                />
-                <Input
-                    label="Round Answer To"
-                    type="number"
-                    name="answer.round"
-                    value={instance.modifiers.answer.round}
-                    onChange={handleModifierChange}
-                    min={0}
-                    max={5}
-                    maxDigits={1}
-                    labelPosition='inline'
-                />
+            <div className="grid grid-cols-1 gap-sm sm:grid-cols-2 sm:gap-md">
+                <Input label="Digits" type="number" name="problem.digits" value={instance.modifiers.problem.digits} onChange={handleModifierChange} min={1} max={5} maxDigits={1} />
+                <Checkbox label="Allow Negatives" name="problem.neg" checked={instance.modifiers.problem.neg === 1 || instance.modifiers.problem.neg === true} onChange={handleModifierChange} />
+                <Input label="Decimals" type="number" name="problem.dec" value={instance.modifiers.problem.dec} onChange={handleModifierChange} min={0} max={5} maxDigits={1} />
+                <Input label="Round Answer To" type="number" name="answer.round" value={instance.modifiers.answer.round} onChange={handleModifierChange} min={0} max={5} maxDigits={1} />
             </div>
         </div>
     );
