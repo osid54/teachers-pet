@@ -42,9 +42,9 @@ export default function SelectedTopicInstance({
     };
 
     return (
-        <div className="bg-main-100 rounded-md m-sm p-sm shadow-sm flex flex-col gap-md relative border border-dashed border-main-500">
+        <div className="bg-main-100 rounded-md p-md shadow-sm flex flex-col gap-md relative">
             <div className="flex justify-between items-center flex-wrap gap-sm">
-                <h4 className="text-base text-main-500 m-0 font-semibold grow text-center pb-xxs border-b border-main-300">
+                <h4 className="text-base text-main-500 m-0 font-semibold grow">
                     {instance.topicName}
                 </h4>
                 <div className="flex gap-xs">
@@ -55,7 +55,7 @@ export default function SelectedTopicInstance({
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-sm sm:grid-cols-2 sm:gap-md">
+            <div className="grid grid-cols-1 gap-sm min-[769px]:grid-cols-2 min-[769px]:gap-md">
                 <Input label="Digits" type="number" name="problem.digits" value={instance.modifiers.problem.digits} onChange={handleModifierChange} min={1} max={5} maxDigits={1} />
                 <Checkbox label="Allow Negatives" name="problem.neg" checked={instance.modifiers.problem.neg === 1 || instance.modifiers.problem.neg === true} onChange={handleModifierChange} />
                 <Input label="Decimals" type="number" name="problem.dec" value={instance.modifiers.problem.dec} onChange={handleModifierChange} min={0} max={5} maxDigits={1} />

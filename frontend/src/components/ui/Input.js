@@ -59,9 +59,9 @@ export default function Input({
         }
     };
 
-    const containerClasses = `w-full flex items-center justify-center gap-sm ${labelPosition === 'top' ? 'flex-col gap-xxs' : ''} ${className}`;
-    const labelClasses = `text-sm text-main-500 font-medium text-center ${labelPosition === 'top' ? 'w-[80%] block mb-0' : 'w-1/2'} ${type === 'number' ? 'w-1/2' : ''}`;
-    const inputClasses = `border border-main-300 rounded-sm text-base text-main-600 bg-main-200 p-sm transition-all pr-xs
+    const containerClasses = `w-full flex items-center gap-sm ${labelPosition === 'top' ? 'flex-col justify-center gap-xxs' : ''} ${className}`;
+    const labelClasses = `text-sm text-main-500 font-medium text-center ${labelPosition === 'top' ? 'w-[80%] block mb-0' : type === 'number' ? 'w-1/2 shrink-0' : 'min-[769px]:w-auto max-[768px]:w-[30%]'}`;
+    const inputClasses = `border border-main-300 rounded-sm text-base text-main-600 bg-main-200 px-md py-sm transition-all
                         focus:outline-none focus:border-main-500 focus:ring-1 focus:ring-main-300 
                         disabled:bg-main-300 disabled:cursor-not-allowed disabled:opacity-80
                         placeholder:text-main-500 placeholder:opacity-70 

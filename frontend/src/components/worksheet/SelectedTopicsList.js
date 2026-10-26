@@ -11,7 +11,7 @@ export default function SelectedTopicsList({
     onRemoveTopicInstance,
 }) {
     return (
-        <div className="flex flex-col overflow-y-auto pr-0 scrollbar-thin 
+        <div className="flex flex-col gap-sm overflow-y-auto pr-0 scrollbar-thin
                         max-h-[44vh] scrollbar-thumb-main-500 scrollbar-track-main-100">
             {topicInstances.map((instance) => (
                 <SelectedTopicInstance key={instance.id} instance={instance} mode={mode} onModifierChange={onTopicInstanceModifierChange} onAddInstance={onAddTopicInstance} onRemove={onRemoveTopicInstance} />

@@ -19,15 +19,15 @@ export default function TemplateListGrid({
     const user = authContext ? authContext.user : null;
 
     if (isLoading) {
-        return <p className="text-center py-xxl text-md text-main-500 sm:text-lg">{loadingMessage || "Loading templates..."}</p>;
+        return <p className="text-center py-xxl text-lg text-main-500">{loadingMessage || "Loading templates..."}</p>;
     }
 
     if (!templates || templates.length === 0) {
-        return <p className="text-center py-xxl text-md text-main-500 sm:text-lg">{emptyMessage}</p>;
+        return <p className="text-center py-xxl text-lg text-main-500">{emptyMessage}</p>;
     }
 
     return (
-        <div className="grid grid-cols-1 gap-md p-sm sm:grid-cols-[repeat(auto-fit,minmax(280px,1fr))] sm:gap-xl sm:p-md">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,280px),1fr))] gap-xl p-xs min-[769px]:p-md">
             {templates.map(template => (
                 <TemplateCard
                     key={template.id}

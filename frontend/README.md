@@ -1,36 +1,13 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+Teacher's Pet frontend is a Vite + React single-page app using React Router and Tailwind CSS. FastAPI provides the worksheet and template APIs.
 
-## Getting Started
+## Local development
 
-First, run the development server:
+Install dependencies with `npm install`, then run `npm run dev` from this directory. Open http://localhost:3000. The backend runs separately on port 5000; see the root README for setup.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+The API defaults to http://localhost:5000. To use another backend, create `.env.local` here with `VITE_API_BASE_URL=http://localhost:5000`. Vite exposes `VITE_` variables to the browser; do not put secrets in them.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Use `npm run build` to produce static files in `dist/`, `npm run preview` to preview them, and `npm run lint` to check source files. Existing lint findings in the template/worksheet flows are not part of the framework migration.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Deployment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+On Vercel, set the project root to `frontend`, the framework preset to Vite, the build command to `npm run build`, and the output directory to `dist`. Set `VITE_API_BASE_URL` to the Railway backend URL. `vercel.json` rewrites direct navigation to SPA routes back to `index.html`.

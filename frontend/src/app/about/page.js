@@ -13,11 +13,11 @@ export default function AboutPage() {
                 <p className="text-base text-main-500 mb-md leading-relaxed">
                     Teacher&apos;s Pet is a custom worksheet generation platform designed to bridge the gap
                     between complex mathematical concepts and classroom-ready materials.
-                    Built with **Next.js 15** and **FastAPI**, it allows for high-precision arithmetic
+                    Built with React, Vite, and FastAPI, it allows for high-precision arithmetic
                     customization for students of all levels.
                 </p>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-md mt-xl text-left">
+                <div className="grid grid-cols-1 min-[769px]:grid-cols-2 gap-md mt-xl text-left">
                     <div className="border-l-4 border-main-500 pl-md">
                         <h3 className="text-lg font-semibold text-main-600">The Mission</h3>
                         <p className="text-sm text-main-500 mt-xs">

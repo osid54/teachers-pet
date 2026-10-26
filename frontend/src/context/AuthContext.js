@@ -3,11 +3,10 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { useRouter } from 'next/navigation';
 
 export const AuthContext = createContext(null);
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 const authApi = axios.create({ baseURL: API_BASE_URL });
 
 const getStoredToken = () => {
@@ -31,8 +30,6 @@ export const AuthProvider = ({ children }) => {
     const [isLoggedIn, setIsLoggedIn] = useState(!!getStoredToken());
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
-
-    const router = useRouter();
 
     useEffect(() => {
         const initializeAuth = async () => {

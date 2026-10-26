@@ -18,8 +18,13 @@
     margin: 0;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     
     @apply bg-main-200 text-main-500 font-sans text-base;
+  }
+
+  #root {
+    @apply min-h-screen flex flex-col;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -44,11 +49,11 @@
 
 @layer components {
   .app-container {
-    @apply min-h-screen flex flex-col max-w-[1600px] mx-auto p-xl sm:p-md;
+    @apply min-h-screen flex flex-col max-w-[1600px] mx-auto p-md min-[769px]:p-xl;
   }
 
   .app-content {
-    @apply max-w-[1600px] mx-auto p-xl sm:p-md flex-grow mt-[90px];
+    @apply max-w-[1600px] mx-auto p-md min-[769px]:p-xl flex-grow mt-[90px];
   }
 }
 
@@ -64,6 +69,6 @@
     background: hsla(0, 10%, 71%, 1);
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: hsla(0, 10%, 23%, 1);
+    background: hsla(0, 15%, 83%, 1);
   }
 }

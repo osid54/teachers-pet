@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 import { useBackendStatus } from '@/hooks/useBackendStatus';
@@ -21,7 +21,7 @@ function PageContent() {
   const { statusMessage, isLoading: statusLoading, error: statusError } = useBackendStatus();
   const { generate, loading: generateLoading, error: generateError, pdfUrl } = useGenerateWorksheet();
   const { authApi, isLoggedIn } = useAuth();
-  const router = useRouter();
+  const navigate = useNavigate();
 
   const [topicSelectionMode, setTopicSelectionMode] = useState('single');
   const [selectedTopicInstances, setSelectedTopicInstances] = useState([]);
@@ -33,7 +33,7 @@ function PageContent() {
     mixedProblems: false,
   });
 
-  const searchParams = useSearchParams();
+  const [searchParams] = useSearchParams();
   const templateIdFromUrl = searchParams.get('templateId');
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [saveTemplateError, setSaveTemplateError] = useState(null);
@@ -97,7 +97,7 @@ function PageContent() {
         } catch (error) {
           console.error("Failed to load template from API:", error.response?.data || error.message);
           alert("Failed to load template for editing. It might not exist or you don't have access.");
-          router.replace('/');
+          navigate('/', { replace: true });
           return;
         }
       }
@@ -123,7 +123,7 @@ function PageContent() {
         setSelectedTopicInstances(loadedInstances);
 
         if (loadedFrom === 'api') {
-          router.replace('/');
+          navigate('/', { replace: true });
         }
 
         if (templateIdFromUrl) {
@@ -294,10 +294,10 @@ function PageContent() {
   };
 
   return (
-    <div className="flex w-full sm:flex-row sm:gap-xl flex-col gap-md">
+    <div className="flex w-full min-[769px]:flex-row min-[769px]:gap-xl flex-col gap-md">
 
-      <div className="grow bg-main-300 sm:max-w-[calc(100%-460px)] max-w-full mr-0 rounded-lg shadow-lg p-md sm:p-xl">
-        <h1 className="text-h3 sm:text-xl font-bold text-main-900 text-center ">
+      <div className="grow bg-main-300 min-[769px]:max-w-[calc(100%-380px)] max-w-full mr-0 rounded-lg shadow-lg p-md min-[769px]:p-xl">
+        <h1 className="text-h3 min-[769px]:text-xl font-bold text-main-900 text-center ">
           Generate Your Worksheet
         </h1>
 
@@ -307,14 +307,14 @@ function PageContent() {
           <Button
             onClick={() => { setTopicSelectionMode('single'); setSelectedTopicInstances([]); }}
             variant={topicSelectionMode === 'single' ? 'primary' : 'secondary'}
-            className="min-w-[150px]"
+            className="min-[769px]:min-w-[150px]"
           >
             Single Topic
           </Button>
           <Button
             onClick={() => setTopicSelectionMode('multi')}
             variant={topicSelectionMode === 'multi' ? 'primary' : 'secondary'}
-            className="min-w-[150px]"
+            className="min-[769px]:min-w-[150px]"
           >
             Multi Topic
           </Button>
@@ -325,7 +325,7 @@ function PageContent() {
             <React.Fragment key={subjectData.subject}>
               <SubjectHeader title={subjectData.subject} />
 
-              <div className="grid sm:grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-md justify-items-center grid-cols-[repeat(auto-fit,minmax(120px,1fr))]">
+              <div className="grid min-[769px]:grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-md justify-items-center grid-cols-[repeat(auto-fit,minmax(120px,1fr))]">
                 {subjectData.topics.map(topic => {
                   const isCardSelected = selectedTopicInstances.some(inst => inst.topicId === topic.id);
                   return (
@@ -343,7 +343,7 @@ function PageContent() {
         </div>
       </div>
 
-      <div className='h-[30vh] sm:hidden'/>
+      <div className='h-[30vh] min-[769px]:hidden'/>
 
       {isMounted && (
         <Sidebar

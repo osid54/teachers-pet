@@ -57,9 +57,9 @@ This tool offers dynamic PDF generation based on user-defined topics, number ran
 Teacher's Pet is built with a modern, full-stack architecture:
 
 **Frontend:**
-* **Next.js** (React Framework): For building the user interface, routing, and server-side rendering capabilities.
+* **Vite + React Router:** Client-side React app with browser-based routing.
 * **React:** Declarative JavaScript library for building user interfaces.
-* **Sass:** CSS pre-processor for structured and maintainable styling.
+* **Tailwind CSS:** Utility-based styling.
 * **Axios:** Promise-based HTTP client for making API requests.
 * **uuid:** For generating unique IDs for template instances.
 
@@ -77,7 +77,7 @@ Teacher's Pet is built with a modern, full-stack architecture:
 * **PostgreSQL:** Robust, open-source relational database.
 
 **Hosting:**
-* **Frontend:** Vercel (for Next.js deployment)
+* **Frontend:** Vercel (static Vite build)
 * **Backend & Database:** Railway (for FastAPI web service and PostgreSQL managed database)
 
 ## 4. Getting Started
@@ -146,7 +146,7 @@ Before you begin, ensure you have the following installed:
         ```
     * **Frontend Environment Variables:** Create a `.env.local` file in `frontend/` and add your local backend URL:
         ```
-        NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
+        VITE_API_BASE_URL=http://localhost:5000
         ```
     * **Run the Frontend Development Server (Optional, for running only frontend):**
         ```bash
@@ -164,15 +164,16 @@ Before you begin, ensure you have the following installed:
             ```bash
             npm run dev-all-unix
             ```
-    * This will start both your FastAPI backend and Next.js frontend development servers simultaneously.
+    * This will start both your FastAPI backend and Vite frontend development servers simultaneously.
 
 ## 5. Deployment
 
 Teacher's Pet is designed for continuous deployment:
 
-* **Frontend (Next.js):** Hosted on [Vercel](https://vercel.com/).
+* **Frontend (Vite):** Hosted on [Vercel](https://vercel.com/).
     * Connected to the `frontend/` subdirectory of this repository.
-    * `NEXT_PUBLIC_API_BASE_URL` is configured on Vercel to point to the deployed Railway backend URL.
+    * Set the framework preset to Vite and the output directory to `dist`; `frontend/vercel.json` handles client-side routes.
+    * `VITE_API_BASE_URL` is configured on Vercel to point to the deployed Railway backend URL.
 * **Backend (FastAPI) & Database (PostgreSQL):** Hosted on [Railway](https://railway.app/).
     * Connected to the `backend/` subdirectory of this repository.
     * Database connection string (`DATABASE_URL`) and `SECRET_KEY` are configured as environment variables on Railway.

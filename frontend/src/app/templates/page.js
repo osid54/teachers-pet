@@ -3,8 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button, Input, Checkbox } from '@/components/ui';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import TemplateListGrid from '@/components/templates/TemplateListGrid';
 import { PREDEFINED_TAGS } from '@/lib/constants';
@@ -17,7 +16,7 @@ export default function TemplatesPage() {
 
     const [activeTab, setActiveTab] = useState('public');
     const [isMounted, setIsMounted] = useState(false);
-    const router = useRouter();
+    const navigate = useNavigate();
 
     const [showLoginForm, setShowLoginForm] = useState(false);
     const [showRegisterForm, setShowRegisterForm] = useState(false);
@@ -86,12 +85,12 @@ export default function TemplatesPage() {
     const handleUseTemplate = (template) => {
         if (typeof window !== 'undefined') {
             localStorage.setItem('tempLoadTemplate', JSON.stringify(template.settings_json));
-            router.push('/');
+            navigate('/');
         }
     };
 
     const handleEditTemplate = (templateId) => {
-        router.push(`/?templateId=${templateId}`);
+        navigate(`/?templateId=${templateId}`);
     };
 
     const handleLikeTemplate = async (templateId) => {
@@ -200,24 +199,26 @@ export default function TemplatesPage() {
     }
 
     return (
-        <div className="flex flex-col gap-lg max-w-[1200px] mx-auto p-md">
-            <h1 className="text-xl font-bold text-main-700 text-center mb-md">Templates</h1>
+        <div className="flex flex-col items-center text-center max-w-[1600px] mx-auto min-h-[calc(100vh-100px)] p-md min-[1025px]:p-xl bg-main-300 rounded-lg shadow-lg">
+            <h1 className="text-h3 min-[769px]:text-xl font-semibold text-main-900 mb-sm min-[769px]:mb-md">Templates</h1>
 
             {!isLoggedIn ? (
-                <div className="flex flex-col items-center gap-md mb-xxl">
-                    <p className="text-base text-main-500 text-center max-w-2xl">
+                <div className="flex flex-col items-center gap-md mb-xxl bg-main-100 rounded-md shadow-sm p-sm min-[769px]:p-xxl w-[90%] min-[769px]:w-[80%]">
+                    <p className="text-sm min-[769px]:text-lg text-main-500 mb-md min-[769px]:mb-xl">
                         Log in or register to save your own templates, organize your favorites, and access personalized features!
                     </p>
-                    <div className="flex gap-md">
+                    <div className="flex flex-wrap min-[769px]:flex-nowrap justify-center w-full min-[769px]:w-auto gap-md mb-md min-[769px]:mb-xl">
                         <Button
                             onClick={() => { setShowLoginForm(!showLoginForm); setShowRegisterForm(false); setInlineAuthError(null); }}
                             variant={showLoginForm ? 'primary' : 'secondary'}
+                            className="flex-1 min-w-0 px-xs min-[769px]:px-md min-[769px]:w-[150px]"
                         >
                             Login
                         </Button>
                         <Button
                             onClick={() => { setShowRegisterForm(!showRegisterForm); setShowLoginForm(false); setInlineAuthError(null); }}
                             variant={showRegisterForm ? 'primary' : 'secondary'}
+                            className="flex-1 min-w-0 px-xs min-[769px]:px-md min-[769px]:w-[150px]"
                         >
                             Register
                         </Button>
@@ -226,10 +227,10 @@ export default function TemplatesPage() {
                     {inlineAuthError && <p className="text-main-600 text-sm mt-xs mb-md font-medium">{inlineAuthError}</p>}
 
                     {(showLoginForm || showRegisterForm) && (
-                        <div className="bg-main-100 rounded-lg p-xl shadow-sm border-2 border-dashed border-main-300 w-full max-w-md mt-md">
+                        <div className="bg-main-100 rounded-lg p-xl shadow-sm border-2 border-dashed border-main-300 w-full max-w-[448px] mt-md">
                             <form
                                 onSubmit={showLoginForm ? handleLoginSubmit : handleRegisterSubmit}
-                                className="flex flex-col gap-md"
+                                className="flex flex-col gap-md w-full"
                             >
                                 <Input label="Username" value={showLoginForm ? loginUsername : registerUsername} onChange={(e) => showLoginForm ? setLoginUsername(e.target.value) : setRegisterUsername(e.target.value)} required />
                                 {!showLoginForm && <Input label="Email" type="email" value={registerEmail} onChange={(e) => setRegisterEmail(e.target.value)} required />}
@@ -253,7 +254,7 @@ export default function TemplatesPage() {
                             {tab.charAt(0).toUpperCase() + tab.slice(1)} Templates
                         </Button>
                     ))}
-                        <Link href="/">
+                        <Link to="/">
                             <Button variant="secondary">
                                 Create New Template
                             </Button>
@@ -262,12 +263,12 @@ export default function TemplatesPage() {
                 </div>
             )}
 
-            <section className="bg-main-100 rounded-lg p-lg shadow-sm">
-                <h2 className="text-h2 text-main-600 mb-lg border-b border-main-300 pb-xs capitalize">
+            <section className="bg-main-100 rounded-md p-sm min-[769px]:p-lg shadow-sm w-full min-[769px]:w-[80%]">
+                <h2 className="text-h2 text-main-800 my-md min-[769px]:my-lg capitalize">
                     {activeTab} Templates
                 </h2>
 
-                <div className="flex flex-col gap-lg mb-xl bg-main-200 p-md rounded-md">
+                <div className="flex flex-col items-center text-center gap-lg bg-main-100 p-xs min-[769px]:p-lg rounded-md border border-dashed border-main-300 w-full">
                     <Input
                         label="Search"
                         value={searchQuery}
@@ -276,12 +277,12 @@ export default function TemplatesPage() {
                         labelPosition="top"
                     />
 
-                    <div className="flex flex-wrap items-end gap-md">
-                        <div className="flex flex-col gap-xxs">
-                            <h3 className="text-sm font-medium text-main-500">Sort By:</h3>
-                            <div className="flex gap-xs">
+                    <div className="flex flex-wrap justify-center items-center gap-lg w-full">
+                        <div className="flex flex-col items-center gap-sm w-full min-[769px]:w-auto min-w-0">
+                            <h3 className="text-base font-semibold text-main-600">Sort By:</h3>
+                            <div className="flex flex-wrap min-[769px]:flex-nowrap justify-center items-center gap-sm w-full min-[769px]:w-auto">
                                 <select
-                                    className="border border-main-300 rounded-sm bg-main-100 p-xs text-main-600"
+                                    className="border border-main-300 rounded-sm bg-main-200 p-xs min-[769px]:p-sm text-main-500 cursor-pointer max-w-full min-w-0"
                                     value={sortBy}
                                     onChange={(e) => { setSortBy(e.target.value); setCurrentPage(0); }}
                                 >
@@ -294,9 +295,9 @@ export default function TemplatesPage() {
                             </div>
                         </div>
 
-                        <div className="flex flex-col gap-xxs flex-grow">
-                            <h3 className="text-sm font-medium text-main-500">Filter by Tags:</h3>
-                            <div className="flex flex-wrap gap-sm bg-main-100 p-sm rounded-sm border border-main-300">
+                        <div className="flex flex-col gap-sm w-[80%]">
+                            <h3 className="text-base font-semibold text-main-600">Filter by Tags:</h3>
+                            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,150px),1fr))] gap-xs text-right">
                                 {PREDEFINED_TAGS.map(tag => (
                                     <Checkbox
                                         key={tag}
@@ -327,7 +328,7 @@ export default function TemplatesPage() {
                     activeTab={activeTab}
                 />
 
-                <div className="flex justify-center gap-md mt-xl">
+                <div className="flex justify-center gap-md mt-0 mb-xxl">
                     <Button onClick={() => setCurrentPage(prev => prev - 1)} disabled={currentPage === 0}>Previous</Button>
                     <Button onClick={() => setCurrentPage(prev => prev + 1)} disabled={publicTemplates.length < templatesPerPage}>Next</Button>
                 </div>

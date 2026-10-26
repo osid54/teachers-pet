@@ -14,7 +14,7 @@ export default function Checkbox({
 }) {
     const checkboxId = id || `checkbox-${Math.random().toString(36).substr(2, 9)}`;
 
-    const containerClasses = `flex cursor-pointer items-center justify-center gap-sm ${labelPosition === 'top' ? 'flex-col gap-xxs' : ''} ${className}`;
+    const containerClasses = `w-full flex cursor-pointer items-center gap-lg ${labelPosition === 'top' ? 'flex-col gap-xxs' : ''} ${className}`;
     const checkboxClasses = `appearance-none w-[28px] h-[28px] border border-main-300 rounded-sm bg-main-200 m-xs cursor-pointer relative transition-all
                              checked:after:content-['✔'] checked:after:absolute checked:after:top-1/2 checked:after:left-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:text-main-500 checked:after:text-[14px] 
                              hover:not-disabled:-translate-y-[1px] 
@@ -29,17 +29,15 @@ export default function Checkbox({
                     {label}
                 </label>
             )}
-            <div className="w-1/2 flex items-center justify-center">
-                <input
-                    type="checkbox"
-                    id={checkboxId}
-                    checked={Boolean(checked)}
-                    onChange={onChange}
-                    disabled={disabled}
-                    className={checkboxClasses}
-                    {...rest}
-                />
-            </div>
+            <input
+                type="checkbox"
+                id={checkboxId}
+                checked={Boolean(checked)}
+                onChange={onChange}
+                disabled={disabled}
+                className={checkboxClasses}
+                {...rest}
+            />
         </div>
     );
 }
