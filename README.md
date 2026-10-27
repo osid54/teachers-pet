@@ -67,7 +67,7 @@ Teacher's Pet is built with a modern, full-stack architecture:
 * **FastAPI** (Python Web Framework): For building the high-performance, asynchronous API endpoints.
 * **Uvicorn:** ASGI server to run the FastAPI application.
 * **SQLAlchemy:** Python SQL Toolkit and Object Relational Mapper (ORM) for database interactions.
-* **Psycopg (asyncio driver):** PostgreSQL adapter for Python, used with SQLAlchemy for asynchronous database operations.
+* **asyncpg:** PostgreSQL adapter used by SQLAlchemy for asynchronous database operations.
 * **Alembic:** Database migration tool for managing schema changes.
 * **Passlib:** Secure password hashing library.
 * **Python-jose:** Library for JSON Web Token (JWT) creation and verification.
@@ -94,6 +94,8 @@ Before you begin, ensure you have the following installed:
 
 ### Local Setup
 
+If you only want to run the frontend against the hosted API, you do not need a local backend or PostgreSQL installation. Configure `VITE_API_BASE_URL` in `frontend/.env.local` with the Railway API URL and skip the backend steps below. Worksheet and template changes will use the live service.
+
 1.  **Clone the Repository:**
     ```bash
     git clone [https://github.com/osid54/teachers-pet.git](https://github.com/osid54/teachers-pet.git)
@@ -115,19 +117,24 @@ Before you begin, ensure you have the following installed:
         ```bash
         pip install -r requirements.txt
         ```
+    * Run backend tests from `backend/`:
+        ```bash
+        python -m unittest discover -s tests
+        ```
     * **PostgreSQL Database Configuration:**
         * Ensure your local PostgreSQL server is running.
         * Create a dedicated database user (e.g., `teacherspetuser`) and database (e.g., `teachers_pet_db`) in your local PostgreSQL.
         * Set your `DATABASE_URL` environment variable locally before running the backend:
             * **Example (Windows Command Prompt):**
-                `set DATABASE_URL="postgresql+psycopg://teacherspetuser:your_password@localhost/teachers_pet_db"`
+                `set "DATABASE_URL=postgresql+asyncpg://teacherspetuser:your_password@localhost/teachers_pet_db"`
             * **Example (macOS/Linux Bash):**
-                `export DATABASE_URL="postgresql+psycopg://teacherspetuser:your_password@localhost/teachers_pet_db"`
+                `export DATABASE_URL="postgresql+asyncpg://teacherspetuser:your_password@localhost/teachers_pet_db"`
             * *(Replace `your_password` with your actual local PostgreSQL user's password)*
+        * Set `SECRET_KEY` to a unique random value before starting the backend. For example, generate one with `python -c "import secrets; print(secrets.token_urlsafe(32))"`, then set it in your shell. Do not reuse the production key in local development.
     * **Alembic Database Migrations:**
-        * Initialize Alembic (if not done already): `alembic init alembic_migrations`
-        * Generate initial migration (or update existing): `alembic revision --autogenerate -m "Add User and Template tables"`
-        * Apply migrations: `alembic upgrade head`
+        * The repository already contains Alembic configuration and migration history. Do not initialize Alembic again.
+        * Apply the checked-in migrations to a fresh local database: `alembic upgrade head`
+        * After model changes, create and review a migration with `alembic revision --autogenerate -m "describe schema change"`, then apply it locally.
     * **Run the Backend Server (Optional, for running only backend):**
         ```bash
         uvicorn main:app --reload --port 5000
@@ -177,7 +184,7 @@ Teacher's Pet is designed for continuous deployment:
 * **Backend (FastAPI) & Database (PostgreSQL):** Hosted on [Railway](https://railway.app/).
     * Connected to the `backend/` subdirectory of this repository.
     * Database connection string (`DATABASE_URL`) and `SECRET_KEY` are configured as environment variables on Railway.
-    * Alembic migrations are automatically applied via a `preDeployHook` in `backend/railway.json`.
+    * The Railway config currently does not run schema migrations automatically. Before enabling automatic migrations, verify the live database's `alembic_version` baseline and review any required data backfills; do not use `create_all()` as a production migration mechanism.
 
 ## 6. Future Plans
 

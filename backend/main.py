@@ -1,9 +1,10 @@
-from fastapi import FastAPI, HTTPException, Depends, status, Query, Request, Security
+from fastapi import FastAPI, HTTPException, Depends, status, Query, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from typing import Optional, List
+from pydantic import BaseModel, Field, field_validator
+from typing import Literal, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.future import select
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
@@ -13,9 +14,8 @@ from datetime import datetime, timedelta
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.security.utils import get_authorization_scheme_param
 from jose import JWTError, jwt
-import asyncio
-import json
-import io
+from starlette.concurrency import run_in_threadpool
+import logging
 import os
 import sys
 from pathlib import Path
@@ -24,7 +24,6 @@ backend_path = Path(__file__).parent
 sys.path.append(str(backend_path))  
 
 from database import get_db
-from database import create_db_and_tables
 from models import User, Template, user_likes_template, user_favorites_template
 from problem_generator.operations import generate_arithmetic_problems
 from pdf_generator.main import create_pdf_worksheet
@@ -35,9 +34,7 @@ app = FastAPI(
     version="0.1.0"
 )
 
-@app.on_event("startup")
-async def startup_event():
-    await create_db_and_tables()
+logger = logging.getLogger(__name__)
 
 origins = [
     "http://localhost:3000",
@@ -61,7 +58,15 @@ class TemplateBase(BaseModel):
     description: Optional[str] = Field(None, max_length=500)
     settings_json: dict = Field(..., description="JSON representation of worksheet settings")
     is_public: bool = Field(False)
-    tags: List[str] = Field([], description="List of predefined tags for the template")
+    tags: List[str] = Field(default_factory=list, description="List of predefined tags for the template")
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, name):
+        name = name.strip()
+        if not name:
+            raise ValueError("Template name cannot be blank.")
+        return name
 
 class TemplateCreate(TemplateBase):
     pass
@@ -72,6 +77,23 @@ class TemplateUpdate(BaseModel):
     settings_json: Optional[dict] = None
     is_public: Optional[bool] = None
     tags: Optional[List[str]] = None
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, name):
+        if name is None:
+            raise ValueError("Template name cannot be null.")
+        name = name.strip()
+        if not name:
+            raise ValueError("Template name cannot be blank.")
+        return name
+
+    @field_validator("settings_json", "is_public", "tags")
+    @classmethod
+    def validate_non_nullable_update_fields(cls, value):
+        if value is None:
+            raise ValueError("This field cannot be null.")
+        return value
 
 class TemplateResponse(TemplateBase):
     id: int
@@ -96,8 +118,15 @@ class TemplateResponse(TemplateBase):
 
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
-    password: str = Field(..., min_length=8)
+    password: str = Field(..., min_length=8, max_length=72)
     email: str = Field(..., description="User's email address")
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_bytes(cls, password):
+        if len(password.encode("utf-8")) > 72:
+            raise ValueError("Password must be at most 72 UTF-8 bytes.")
+        return password
 
 class UserResponse(BaseModel): 
     id: int
@@ -110,25 +139,48 @@ class UserResponse(BaseModel):
         from_attributes = True 
 
 class ProblemModifiers(BaseModel):
-    digits: int = Field(1, gt=0)
-    dec: int = Field(0, ge=0)
+    digits: int = Field(1, ge=1, le=5)
+    dec: int = Field(0, ge=0, le=5)
     neg: int = Field(0, ge=0, le=4)
     frac: bool = Field(False)
 
 class AnswerModifiers(BaseModel):
-    round: int = Field(0, ge=0)
+    round: int = Field(0, ge=0, le=5)
+
+class ModifierSettings(BaseModel):
+    problem: ProblemModifiers = Field(default_factory=ProblemModifiers)
+    answer: AnswerModifiers = Field(default_factory=AnswerModifiers)
+
+class GeneratedProblem(BaseModel):
+    question: str = Field(max_length=500)
+    answer: int | float
+    topic: str = Field(default="", max_length=50)
+    num1: Optional[float] = Field(None, allow_inf_nan=False)
+    num2: Optional[float] = Field(None, allow_inf_nan=False)
+    symbol: Optional[Literal["+", "-", "*", "/"]] = None
 
 class SectionRequest(BaseModel):
-    subject: str = Field(..., description="The subject (e.g., 'Arithmetic').")
-    topic: list[str] = Field(..., description="List of specific topic IDs within the subject (e.g., ['addition', 'multiplication']).")
-    page_count: int = Field(..., gt=0, description="Number of pages for this section.")
+    subject: Literal["Arithmetic"]
+    topic: list[str] = Field(..., min_length=1, max_length=4)
+    page_count: int = Field(..., gt=0, le=50, description="Number of pages for this section.")
     include_answer_key: bool = Field(False, description="Whether to include an answer key for this section.")
-    problems_per_page: int = Field(10, gt=0, description="Number of problems per page for this section.")
-    modifiers: dict = Field({}, description="Dictionary of specific modifiers for this section's problem generation.")
-    mixed_problems_data: Optional[list[dict]] = Field(None, description="Pre-generated, mixed problem data for a mixed worksheet.")
+    problems_per_page: int = Field(10, gt=0, le=50, description="Number of problems per page for this section.")
+    modifiers: ModifierSettings = Field(default_factory=ModifierSettings)
+    mixed_problems_data: Optional[list[GeneratedProblem]] = Field(None, max_length=2500)
 
-# CHANGE IN PRODUCTION.
-SECRET_KEY = os.getenv("SECRET_KEY", "your-super-secret-key-that-should-be-at-least-32-chars-long")
+    @field_validator("topic")
+    @classmethod
+    def validate_topics(cls, topics):
+        valid_topics = {"addition", "subtraction", "multiplication", "division"}
+        if topics == ["mixed"]:
+            return topics
+        if "mixed" in topics or any(topic not in valid_topics for topic in topics):
+            raise ValueError("Topics must be supported arithmetic operations.")
+        return topics
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY must be configured")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
@@ -171,12 +223,10 @@ async def get_current_user(
         if username is None:
             raise credentials_exception
         user = await get_user_from_db(db, username=username)
-        if user is None:
+        if user is None or not user.is_active:
             raise credentials_exception
         return user
-    except JWTError as e:
-        raise credentials_exception
-    except Exception as e:
+    except JWTError:
         raise credentials_exception
 
 async def get_optional_current_user(
@@ -198,7 +248,9 @@ async def _handle_template_action(
     action_table: Table,
     action_type: str
 ):
-    template_result = await db.execute(select(Template).filter(Template.id == template_id))
+    template_result = await db.execute(
+        select(Template).filter(Template.id == template_id).with_for_update()
+    )
     template = template_result.scalar_one_or_none()
 
     if not template:
@@ -255,7 +307,7 @@ async def register_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
             detail="Email already registered"
         )
 
-    hashed_password = pwd_context.hash(user.password)
+    hashed_password = await run_in_threadpool(pwd_context.hash, user.password)
 
     db_user = User(
         username=user.username,
@@ -263,7 +315,14 @@ async def register_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
         hashed_password=hashed_password
     )
     db.add(db_user)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Username or email already registered",
+        )
     await db.refresh(db_user)
 
     return db_user
@@ -276,7 +335,10 @@ async def login_for_access_token(
     result = await db.execute(select(User).filter(User.username == form_data.username))
     user = result.scalar_one_or_none()
 
-    if not user or not pwd_context.verify(form_data.password, getattr(user, "hashed_password", None)):
+    password_matches = user and user.is_active and await run_in_threadpool(
+        pwd_context.verify, form_data.password, user.hashed_password
+    )
+    if not password_matches:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -398,7 +460,7 @@ async def get_saved_templates(
 async def get_template_by_id(
     template_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: Optional[User] = Depends(get_current_user)
+    current_user: Optional[User] = Depends(get_optional_current_user)
 ):
     result = await db.execute(
         select(Template).filter(Template.id == template_id)
@@ -458,7 +520,7 @@ async def update_template(
     if db_template.user_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to update this template")
 
-    update_data = template_update.dict(exclude_unset=True)
+    update_data = template_update.model_dump(exclude_unset=True)
     
     for key, value in update_data.items():
         setattr(db_template, key, value)
@@ -520,13 +582,16 @@ async def get_problems_endpoint(request_data: SectionRequest):
     """
     subject = request_data.subject
     topic_ids = request_data.topic
+    if topic_ids == ["mixed"]:
+        raise HTTPException(status_code=422, detail="Mixed topics are only valid for worksheet generation.")
     total_problems = request_data.page_count * request_data.problems_per_page
-    modifiers = request_data.modifiers
+    modifiers = request_data.modifiers.model_dump()
 
     problems_objects = []
     try:
         if subject == 'Arithmetic':
-            problems_objects = generate_arithmetic_problems(
+            problems_objects = await run_in_threadpool(
+                generate_arithmetic_problems,
                 topic_ids,
                 total_problems,
                 modifiers
@@ -539,37 +604,37 @@ async def get_problems_endpoint(request_data: SectionRequest):
 
     except HTTPException as e:
         raise e
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate raw problems: {str(e)}")
+    except Exception:
+        logger.exception("Raw problem generation failed")
+        raise HTTPException(status_code=500, detail="Failed to generate problems.")
 
 @app.post("/generate-worksheet")
 async def generate_worksheet_endpoint(requests_list: list[SectionRequest]):
-    import json # Ensure this is imported at the top of main.py
+    if not requests_list:
+        raise HTTPException(status_code=422, detail="At least one worksheet section is required.")
+
+    if len(requests_list) > 20:
+        raise HTTPException(status_code=422, detail="A worksheet can contain at most 20 sections.")
+
+    input_problem_count = sum(
+        len(request.mixed_problems_data)
+        if request.mixed_problems_data is not None
+        else request.page_count * request.problems_per_page
+        for request in requests_list
+    )
+    if input_problem_count > 10_000:
+        raise HTTPException(status_code=422, detail="A worksheet can contain at most 10,000 problems.")
 
     all_problems_data_for_pdf = []
     overall_include_answer_key = False
 
     for request_data in requests_list:
-        # --- DEFENSIVE CHECK: Ensure modifiers is a dict ---
-        modifiers = request_data.modifiers
-        if isinstance(modifiers, str):
-            try:
-                modifiers = json.loads(modifiers)
-            except:
-                modifiers = {}
+        modifiers = request_data.modifiers.model_dump()
 
         # PATH A: Mixed Problems
-        if request_data.topic == ["mixed"] and request_data.mixed_problems_data:
-            problems_for_section = []
-            for p in request_data.mixed_problems_data:
-                # --- DEFENSIVE CHECK: Parse problem if it's a string ---
-                if isinstance(p, str):
-                    try:
-                        problems_for_section.append(json.loads(p))
-                    except:
-                        continue 
-                else:
-                    problems_for_section.append(p)
+        if request_data.topic == ["mixed"]:
+            if not request_data.mixed_problems_data:
+                raise HTTPException(status_code=422, detail="Mixed worksheets require generated problem data.")
 
             all_problems_data_for_pdf.append({
                 "type": "section_header",
@@ -579,14 +644,20 @@ async def generate_worksheet_endpoint(requests_list: list[SectionRequest]):
                 "problems_per_page": request_data.problems_per_page,
                 "modifiers": modifiers
             })
-            all_problems_data_for_pdf.extend(problems_for_section)
+            all_problems_data_for_pdf.extend(
+                problem.model_dump() for problem in request_data.mixed_problems_data
+            )
 
         # PATH B: Fresh Generation
         else:
+            if request_data.mixed_problems_data is not None:
+                raise HTTPException(status_code=422, detail="Mixed problem data requires the mixed topic.")
+
             total_problems = request_data.page_count * request_data.problems_per_page
             
             # Pass our sanitized 'modifiers' dict to your operations logic
-            problems_objects = generate_arithmetic_problems(
+            problems_objects = await run_in_threadpool(
+                generate_arithmetic_problems,
                 request_data.topic, 
                 total_problems, 
                 modifiers
@@ -609,7 +680,8 @@ async def generate_worksheet_endpoint(requests_list: list[SectionRequest]):
 
     try:
         # Generate the PDF
-        pdf_buffer = create_pdf_worksheet(
+        pdf_buffer = await run_in_threadpool(
+            create_pdf_worksheet,
             all_problems_data_for_pdf,
             overall_include_answer_key,
         )
@@ -621,11 +693,9 @@ async def generate_worksheet_endpoint(requests_list: list[SectionRequest]):
             headers={"Content-Disposition": "attachment; filename=worksheet.pdf"}
         )
 
-    except Exception as e:
-        # If it still fails, this will print the EXACT item that caused the error
-        # to your terminal console so you can see if it's a string or dict.
-        print(f"DEBUG: Error processing PDF data list. Culprit likely in here: {all_problems_data_for_pdf[:2]}")
-        raise HTTPException(status_code=500, detail=f"Failed to generate worksheet: {str(e)}")
+    except Exception:
+        logger.exception("Worksheet PDF generation failed")
+        raise HTTPException(status_code=500, detail="Failed to generate worksheet PDF.")
     
 if __name__ == "__main__":
     import uvicorn

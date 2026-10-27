@@ -1,25 +1,12 @@
 {
-  "$schema": "https://railway.app/railway.schema.json",
+  "$schema": "https://railway.com/railway.schema.json",
   "build": {
-    "builder": "NIXPACKS"
+    "builder": "RAILPACK",
+    "buildCommand": "pip install -r requirements.txt"
   },
   "deploy": {
     "startCommand": "python main.py",
     "healthcheckPath": "/",
-    "healthcheckTimeout": 300,
-    "buildCommand": "pip install -r requirements.txt"
-  },
-  "builds": [
-    {
-      "name": "fastapi-backend",
-      "buildCommand": "pip install -r requirements.txt",
-      "startCommand": "python main.py",
-      "rootDirectory": "./"
-    }
-  ],
-  "build_and_deploy": {
-    "web": {
-      "preDeployHook": "alembic upgrade head"
-    }
+    "healthcheckTimeout": 300
   }
 }
