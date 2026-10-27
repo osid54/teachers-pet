@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, status, Query, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
-from typing import Literal, Optional, List
+from typing import Literal, Optional, List, Union
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.future import select
@@ -153,7 +153,7 @@ class ModifierSettings(BaseModel):
 
 class GeneratedProblem(BaseModel):
     question: str = Field(max_length=500)
-    answer: int | float
+    answer: Union[int, float]
     topic: str = Field(default="", max_length=50)
     num1: Optional[float] = Field(None, allow_inf_nan=False)
     num2: Optional[float] = Field(None, allow_inf_nan=False)
