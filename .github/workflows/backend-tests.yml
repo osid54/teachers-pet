@@ -45,3 +45,45 @@ jobs:
           path: backend/artifacts/pdf-samples/
           if-no-files-found: error
           retention-days: 14
+
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: teachers_pet_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:ci-only-password@localhost:5432/teachers_pet_ci
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:ci-only-password@localhost:5432/teachers_pet_ci
+      SECRET_KEY: ci-only-secret-not-for-production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-test.txt
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-test.txt
+      - name: Apply migrations to empty PostgreSQL database
+        run: python -m alembic upgrade head
+      - name: Verify schema matches models
+        run: python -m alembic check
+      - name: Test disposable database and API workflows
+        run: python -m unittest discover -s tests -p test_database.py -v
