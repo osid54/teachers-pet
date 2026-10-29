@@ -1,5 +1,7 @@
 # Backend Verification on Another PC
 
+The demo data is now explicitly disposable. For a reset within the existing Railway PostgreSQL service, follow `RESET_DEMO_DATABASE.md` instead of trying to preserve/baseline those demo rows. The reset still requires a verified connection and does not run automatically.
+
 ## GitHub CI without the other PC
 
 The `Backend Tests` GitHub Actions workflow runs Python 3.12 syntax and database-free regression tests on backend pushes to `backend-stabilization` or `dev`, and relevant PRs. Open the repository's Actions tab to inspect results. It can also be started manually once the workflow is available in GitHub's default-branch workflow listing.

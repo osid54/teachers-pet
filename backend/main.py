@@ -6,7 +6,8 @@ from typing import Literal, Optional, List, Union
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.future import select
-from sqlalchemy import func
+from sqlalchemy import func, cast, or_
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import joinedload
 from sqlalchemy import and_, Table
 from passlib.context import CryptContext
@@ -256,6 +257,9 @@ async def _handle_template_action(
     if not template:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Template not found")
 
+    if not template.is_public and template.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this template")
+
     user_action_exists = await db.scalar(
         select(action_table).filter(
             and_(action_table.c.user_id == current_user.id, action_table.c.template_id == template_id)
@@ -388,8 +392,7 @@ async def get_public_templates(
         )
 
     if tags:
-        for tag in tags:
-            query = query.filter(Template.tags.contains([tag]))
+        query = query.filter(cast(Template.tags, JSONB).contains(tags))
 
     if sort_by == "created_at":
         if sort_order == "desc":
@@ -423,7 +426,8 @@ async def get_saved_templates(
     db: AsyncSession = Depends(get_db)
 ):
     query = select(Template).join(user_favorites_template).filter(
-        user_favorites_template.c.user_id == current_user.id
+        user_favorites_template.c.user_id == current_user.id,
+        or_(Template.is_public.is_(True), Template.user_id == current_user.id),
     ).options(joinedload(Template.owner))
 
     if q:
@@ -433,8 +437,7 @@ async def get_saved_templates(
             (func.lower(Template.description).like(search_pattern))
         )
     if tags:
-        for tag in tags:
-            query = query.filter(Template.tags.contains([tag]))
+        query = query.filter(cast(Template.tags, JSONB).contains(tags))
 
     if sort_by == "created_at":
         if sort_order == "desc":
