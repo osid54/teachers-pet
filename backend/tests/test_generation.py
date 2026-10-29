@@ -53,6 +53,16 @@ class SectionRequestTests(unittest.TestCase):
 
 
 class PdfPaginationTests(unittest.TestCase):
+    def test_supported_page_densities_do_not_spill_to_extra_pages(self):
+        for per_page in (1, 6, 10, 50):
+            with self.subTest(problems_per_page=per_page):
+                section = {"type": "section_header", "subject": "Arithmetic", "topic_name": "Addition",
+                           "page_count": 2, "problems_per_page": per_page}
+                problems = [MathProblem("12345 + 67890", 80235, num1=12345, num2=67890, symbol="+").to_dict()
+                            for _ in range(per_page * 2)]
+                pdf = create_pdf_worksheet([section, *problems], False).getvalue()
+                self.assertEqual(len(re.findall(rb"/Type\s*/Page\b", pdf)), 2)
+
     def test_renders_requested_section_page_count(self):
         section = {
             "type": "section_header",
