@@ -88,7 +88,7 @@ Follow these steps to set up and run Teacher's Pet locally on your machine.
 
 Before you begin, ensure you have the following installed:
 * [**Node.js**](https://nodejs.org/en/download/) (LTS version recommended) & `npm`
-* [**Python 3.9+**](https://www.python.org/downloads/) & `pip`
+* [**Python 3.12**](https://www.python.org/downloads/) & `pip` (matches backend CI and the runtime pin)
 * [**Git**](https://git-scm.com/downloads)
 * [**PostgreSQL**](https://www.postgresql.org/download/) (local server for backend development)
 
@@ -184,7 +184,8 @@ Teacher's Pet is designed for continuous deployment:
 * **Backend (FastAPI) & Database (PostgreSQL):** Hosted on [Railway](https://railway.app/).
     * Connected to the `backend/` subdirectory of this repository.
     * Database connection string (`DATABASE_URL`) and `SECRET_KEY` are configured as environment variables on Railway.
-    * The Railway config currently does not run schema migrations automatically. Before enabling automatic migrations, verify the live database's `alembic_version` baseline and review any required data backfills; do not use `create_all()` as a production migration mechanism.
+    * `backend/railway.json` runs `python -m alembic upgrade head` before starting the backend. `backend/.python-version` pins Python 3.12. This is a migration command, not the destructive demo reset.
+    * The existing demo database was reset through Alembic and verified on 2026-10-29. Follow `backend/DEPLOYMENT_CHECKLIST.md` before deploying these branch changes; no schema stamping or repeat reset is needed.
 
 ## 6. Future Plans
 

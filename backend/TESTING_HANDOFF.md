@@ -1,5 +1,7 @@
 # Backend Verification on Another PC
 
+Current status: PDF review and the authorized Railway demo reset are complete. Reset run https://github.com/osid54/teachers-pet/actions/runs/40938220018 passed on 2026-10-29. `DEPLOYMENT_CHECKLIST.md` now tracks remaining rollout actions. Do not repeat the reset or stamp the database merely to follow an older checklist.
+
 The demo data is now explicitly disposable. For a reset within the existing Railway PostgreSQL service, follow `RESET_DEMO_DATABASE.md` instead of trying to preserve/baseline those demo rows. The reset still requires a verified connection and does not run automatically.
 
 ## GitHub CI without the other PC
@@ -48,7 +50,7 @@ Review these cases, adding regression tests for failures:
 - All four arithmetic operations, mixed problems, five-digit operands, negatives, and five decimal places.
 - Long operands, headings, and answers: no clipping, overlaps, unexpected extra pages, or missing working space.
 
-The new five-column layout is not yet visually verified. In particular, verify that 50 problems actually fit the requested page count. Fix failures before merging or deploying.
+The owner reviewed the CI sample PDFs successfully. Continue using these cases as regression checks whenever the layout changes.
 
 ## 4. Verify migrations on a disposable database
 
@@ -56,7 +58,9 @@ This is separate from the database-free tests and can use a temporary container 
 
 Set `DATABASE_URL` for the disposable database, then run `alembic upgrade head` and `alembic check`. Also test upgrading a populated older schema: the historical tags migration adds a non-null column without a backfill and needs particular care. Do not silently rewrite migration history already applied to production.
 
-## 5. Inspect Railway before enabling deployment migrations
+## 5. Migration baseline for future databases
+
+The existing Railway demo database has already been recreated and verified at Alembic head. The following baseline inspection applies to a different or restored database, not as a request to repeat that completed operation.
 
 Take a backup first. Using Railway's database console, inspect the schema and run this read-only query:
 
@@ -72,7 +76,7 @@ Do not run `alembic stamp head`, reset tables, or enable automatic migrations si
 
 - Confirm `DATABASE_URL` and `SECRET_KEY` are configured on Railway; keep `SQL_ECHO` off.
 - Confirm the Railway service root and connected deployment branch before pushing deployment changes.
-- Automatic migrations are intentionally not configured in the branch's Railway file. Inspect dashboard overrides too.
+- The branch's Railway file now runs `python -m alembic upgrade head` before startup. CI tests both fresh application and repeat application. Inspect dashboard overrides too; the demo reset is never a deployment command.
 - Review builder/config changes against the existing working Railway service before deploying.
 - After tests and migration-baseline verification pass, open a PR into `dev`; deploy deliberately rather than merging unverified changes into production.
 
