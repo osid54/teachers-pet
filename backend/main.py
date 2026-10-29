@@ -42,6 +42,7 @@ origins = [
     "http://127.0.0.1:3000",
     "https://teachers-pet-ashen.vercel.app",
     "https://www.teachers-pet.site",
+    "https://teachers-pet-git-production-osid54s-projects.vercel.app"
 ]
 
 app.add_middleware(
