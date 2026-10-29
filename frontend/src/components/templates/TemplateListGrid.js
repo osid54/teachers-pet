@@ -1,8 +1,6 @@
 'use client';
 
-import React from 'react';
 import TemplateCard from './TemplateCard';
-import styles from '@/styles/components/templates/_templateListGrid.module.scss';
 
 export default function TemplateListGrid({
     templates,
@@ -17,23 +15,23 @@ export default function TemplateListGrid({
     onFavorite,
     activeTab,
 }) {
-    const user = authContext ? authContext.user : null; 
+    const user = authContext ? authContext.user : null;
 
     if (isLoading) {
-        return <p className={styles.loadingMessage}>{loadingMessage || "Loading templates..."}</p>;
+        return <p className="text-center py-xxl text-lg text-main-500">{loadingMessage || "Loading templates..."}</p>;
     }
 
     if (!templates || templates.length === 0) {
-        return <p className={styles.emptyMessage}>{emptyMessage}</p>;
+        return <p className="text-center py-xxl text-lg text-main-500">{emptyMessage}</p>;
     }
 
     return (
-        <div className={styles.grid}>
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,280px),1fr))] gap-xl p-xs min-[769px]:p-md">
             {templates.map(template => (
                 <TemplateCard
                     key={template.id}
                     template={template}
-                    isOwner={user ? template.user_id === user.id : false} 
+                    isOwner={user ? template.user_id === user.id : false}
                     onUse={onUse}
                     onEdit={onEdit}
                     onDelete={onDelete}

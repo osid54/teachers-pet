@@ -57,9 +57,9 @@ This tool offers dynamic PDF generation based on user-defined topics, number ran
 Teacher's Pet is built with a modern, full-stack architecture:
 
 **Frontend:**
-* **Next.js** (React Framework): For building the user interface, routing, and server-side rendering capabilities.
+* **Vite + React Router:** Client-side React app with browser-based routing.
 * **React:** Declarative JavaScript library for building user interfaces.
-* **Sass:** CSS pre-processor for structured and maintainable styling.
+* **Tailwind CSS:** Utility-based styling.
 * **Axios:** Promise-based HTTP client for making API requests.
 * **uuid:** For generating unique IDs for template instances.
 
@@ -67,7 +67,7 @@ Teacher's Pet is built with a modern, full-stack architecture:
 * **FastAPI** (Python Web Framework): For building the high-performance, asynchronous API endpoints.
 * **Uvicorn:** ASGI server to run the FastAPI application.
 * **SQLAlchemy:** Python SQL Toolkit and Object Relational Mapper (ORM) for database interactions.
-* **Psycopg (asyncio driver):** PostgreSQL adapter for Python, used with SQLAlchemy for asynchronous database operations.
+* **asyncpg:** PostgreSQL adapter used by SQLAlchemy for asynchronous database operations.
 * **Alembic:** Database migration tool for managing schema changes.
 * **Passlib:** Secure password hashing library.
 * **Python-jose:** Library for JSON Web Token (JWT) creation and verification.
@@ -77,7 +77,7 @@ Teacher's Pet is built with a modern, full-stack architecture:
 * **PostgreSQL:** Robust, open-source relational database.
 
 **Hosting:**
-* **Frontend:** Vercel (for Next.js deployment)
+* **Frontend:** Vercel (static Vite build)
 * **Backend & Database:** Railway (for FastAPI web service and PostgreSQL managed database)
 
 ## 4. Getting Started
@@ -88,11 +88,13 @@ Follow these steps to set up and run Teacher's Pet locally on your machine.
 
 Before you begin, ensure you have the following installed:
 * [**Node.js**](https://nodejs.org/en/download/) (LTS version recommended) & `npm`
-* [**Python 3.9+**](https://www.python.org/downloads/) & `pip`
+* [**Python 3.12**](https://www.python.org/downloads/) & `pip` (matches backend CI and the runtime pin)
 * [**Git**](https://git-scm.com/downloads)
 * [**PostgreSQL**](https://www.postgresql.org/download/) (local server for backend development)
 
 ### Local Setup
+
+If you only want to run the frontend against the hosted API, you do not need a local backend or PostgreSQL installation. Configure `VITE_API_BASE_URL` in `frontend/.env.local` with the Railway API URL and skip the backend steps below. Worksheet and template changes will use the live service.
 
 1.  **Clone the Repository:**
     ```bash
@@ -115,19 +117,24 @@ Before you begin, ensure you have the following installed:
         ```bash
         pip install -r requirements.txt
         ```
+    * Run backend tests from `backend/`:
+        ```bash
+        python -m unittest discover -s tests
+        ```
     * **PostgreSQL Database Configuration:**
         * Ensure your local PostgreSQL server is running.
         * Create a dedicated database user (e.g., `teacherspetuser`) and database (e.g., `teachers_pet_db`) in your local PostgreSQL.
         * Set your `DATABASE_URL` environment variable locally before running the backend:
             * **Example (Windows Command Prompt):**
-                `set DATABASE_URL="postgresql+psycopg://teacherspetuser:your_password@localhost/teachers_pet_db"`
+                `set "DATABASE_URL=postgresql+asyncpg://teacherspetuser:your_password@localhost/teachers_pet_db"`
             * **Example (macOS/Linux Bash):**
-                `export DATABASE_URL="postgresql+psycopg://teacherspetuser:your_password@localhost/teachers_pet_db"`
+                `export DATABASE_URL="postgresql+asyncpg://teacherspetuser:your_password@localhost/teachers_pet_db"`
             * *(Replace `your_password` with your actual local PostgreSQL user's password)*
+        * Set `SECRET_KEY` to a unique random value before starting the backend. For example, generate one with `python -c "import secrets; print(secrets.token_urlsafe(32))"`, then set it in your shell. Do not reuse the production key in local development.
     * **Alembic Database Migrations:**
-        * Initialize Alembic (if not done already): `alembic init alembic_migrations`
-        * Generate initial migration (or update existing): `alembic revision --autogenerate -m "Add User and Template tables"`
-        * Apply migrations: `alembic upgrade head`
+        * The repository already contains Alembic configuration and migration history. Do not initialize Alembic again.
+        * Apply the checked-in migrations to a fresh local database: `alembic upgrade head`
+        * After model changes, create and review a migration with `alembic revision --autogenerate -m "describe schema change"`, then apply it locally.
     * **Run the Backend Server (Optional, for running only backend):**
         ```bash
         uvicorn main:app --reload --port 5000
@@ -146,7 +153,7 @@ Before you begin, ensure you have the following installed:
         ```
     * **Frontend Environment Variables:** Create a `.env.local` file in `frontend/` and add your local backend URL:
         ```
-        NEXT_PUBLIC_API_BASE_URL=http://localhost:5000
+        VITE_API_BASE_URL=http://localhost:5000
         ```
     * **Run the Frontend Development Server (Optional, for running only frontend):**
         ```bash
@@ -164,19 +171,21 @@ Before you begin, ensure you have the following installed:
             ```bash
             npm run dev-all-unix
             ```
-    * This will start both your FastAPI backend and Next.js frontend development servers simultaneously.
+    * This will start both your FastAPI backend and Vite frontend development servers simultaneously.
 
 ## 5. Deployment
 
 Teacher's Pet is designed for continuous deployment:
 
-* **Frontend (Next.js):** Hosted on [Vercel](https://vercel.com/).
+* **Frontend (Vite):** Hosted on [Vercel](https://vercel.com/).
     * Connected to the `frontend/` subdirectory of this repository.
-    * `NEXT_PUBLIC_API_BASE_URL` is configured on Vercel to point to the deployed Railway backend URL.
+    * Set the framework preset to Vite and the output directory to `dist`; `frontend/vercel.json` handles client-side routes.
+    * `VITE_API_BASE_URL` is configured on Vercel to point to the deployed Railway backend URL.
 * **Backend (FastAPI) & Database (PostgreSQL):** Hosted on [Railway](https://railway.app/).
     * Connected to the `backend/` subdirectory of this repository.
     * Database connection string (`DATABASE_URL`) and `SECRET_KEY` are configured as environment variables on Railway.
-    * Alembic migrations are automatically applied via a `preDeployHook` in `backend/railway.json`.
+    * `backend/railway.json` runs `python -m alembic upgrade head` before starting the backend. `backend/.python-version` pins Python 3.12. This is a migration command, not the destructive demo reset.
+    * The existing demo database was reset through Alembic and verified on 2026-10-29. Follow `backend/DEPLOYMENT_CHECKLIST.md` before deploying these branch changes; no schema stamping or repeat reset is needed.
 
 ## 6. Future Plans
 

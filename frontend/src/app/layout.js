@@ -1,32 +1,21 @@
-import '@/styles/globals.scss';
-
-import { Analytics } from "@vercel/analytics/next"
-import { SpeedInsights } from "@vercel/speed-insights/next"
-
+import './globals.css';
+import { Outlet } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { AuthProvider } from '@/context/AuthContext';
 import ToastProvider from '@/components/layout/ToastProvider';
-
 import Navbar from '@/components/layout/Navbar';
 
-export const metadata = {
-  title: "Teacher's Pet",
-  description: "A simple worksheet generator.",
-};
-
-export default function RootLayout({ children }) {
+export default function AppLayout() {
   return (
-    <html lang="en">
-      <body>
-        <AuthProvider>
-          <Navbar />
-          <main className="app-content">
-            {children}
-          </main>
-          <ToastProvider />
-        </AuthProvider>
-        <Analytics />
-        <SpeedInsights />
-      </body>
-    </html>
+    <AuthProvider>
+      <Navbar />
+      <main className="w-full max-w-[1600px] mx-auto p-md min-[769px]:p-xl flex-grow mt-[90px]">
+        <Outlet />
+      </main>
+      <ToastProvider />
+      <Analytics />
+      <SpeedInsights />
+    </AuthProvider>
   );
 }

@@ -24,18 +24,18 @@
       "isolatedModules": true
     },
     "include": [
-      "next-env.d.ts",
       "**/*.js",
       "**/*.jsx",
       "**/*.mjs",
       "**/*.ts",
       "**/*.tsx",
-      ".next/types/**/*.ts",
       "src/**/*.js",
       "src/**/*.jsx",
       "src/**/*.mjs"
     ],
     "exclude": [
-      "node_modules"
+      "node_modules",
+      ".next",
+      "dist"
     ]
   }

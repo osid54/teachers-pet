@@ -1,22 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import styles from '@/styles/components/ui/_input.module.scss';
-
-/*
- * @param {object} props - Component props.
- * @param {string} props.label - The label for the input field.
- * @param {string} [props.type='text'] - The type of input ('text', 'number', 'email', 'password', etc.).
- * @param {string} props.value - The current value of the input.
- * @param {function} props.onChange - Callback function when the input value changes.
- * @param {string} [props.placeholder=''] - Placeholder text for the input.
- * @param {boolean} [props.disabled=false] - If true, the input is disabled.
- * @param {string} [props.className=''] - Additional CSS classes.
- * @param {string} [props.id] - Unique ID for the input and label association.
- * @param {number} [props.min] - Minimum value for number inputs.
- * @param {number} [props.max] - Maximum value for number inputs.
- * @param {number} [props.step] - Step value for number inputs.
- */
+import { useState, useEffect, useId } from 'react';
 
 export default function Input({
     label,
@@ -33,118 +17,80 @@ export default function Input({
     labelPosition = 'inline',
     maxDigits,
     name,
+    onBlur,
     ...rest
 }) {
-    const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = useId();
+    const inputId = id || generatedId;
 
-    const getInitialNumberValue = (val, minProp) => {
-        if (typeof val === 'number') {
-            return String(val);
-        }
-        if (val === null || val === undefined || val === '') {
-            return String(minProp !== undefined ? minProp : 0);
-        }
-        return String(val);
-    };
-
-    const initialInternalValue =
-        type === 'number'
-            ? getInitialNumberValue(value, min)
-            : String(value || '');
-
-    const [internalValue, setInternalValue] = useState(initialInternalValue);
+    const formatValue = (val) => (val === null || val === undefined ? '' : String(val));
+    const [internalValue, setInternalValue] = useState(formatValue(value));
 
     useEffect(() => {
-        const parentValueString =
-            type === 'number'
-                ? getInitialNumberValue(value, min)
-                : String(value || '');
-
-        if (parentValueString !== internalValue) {
-            setInternalValue(parentValueString);
-        }
-    }, [value, min, type, internalValue, label]);
+        setInternalValue(formatValue(value));
+    }, [value]);
 
     const handleInputChange = (event) => {
-        let rawInputValue = event.target.value;
+        let val = event.target.value;
 
         if (type === 'number') {
-            rawInputValue = rawInputValue.replace(/[^0-9]/g, '');
-
-            if (maxDigits !== undefined && rawInputValue.length > maxDigits) {
-                rawInputValue = rawInputValue.slice(0, maxDigits);
+            val = val.replace(/[^0-9]/g, '');
+            if (maxDigits && val.length > maxDigits) {
+                val = val.slice(0, maxDigits);
             }
         }
 
-        setInternalValue(rawInputValue);
-
-        onChange({
-            ...event,
-            target: {
-                ...event.target,
-                name: event.target.name,
-                value: rawInputValue,
-            },
-        });
+        setInternalValue(val);
+        event.target.value = val;
+        onChange?.(event);
     };
 
     const handleInputBlur = (event) => {
         if (type === 'number') {
             let finalValue = event.target.value;
-
-            if (finalValue === '') { 
-                finalValue = String(min !== undefined ? min : 0);
-            }
+            if (finalValue === '') finalValue = String(min ?? 0);
 
             const numValue = parseInt(finalValue, 10);
-
             if (!isNaN(numValue)) {
-                if (min !== undefined && numValue < min) {
-                    finalValue = String(min);
-                }
-                if (max !== undefined && numValue > max) {
-                    finalValue = String(max);
-                }
-            } else {
-                finalValue = String(min !== undefined ? min : 0);
+                if (min !== undefined && numValue < min) finalValue = String(min);
+                if (max !== undefined && numValue > max) finalValue = String(max);
             }
 
-            if (String(value || '') !== finalValue) {
-                onChange({
-                    ...event,
-                    target: {
-                        ...event.target,
-                        name: event.target.name,
-                        value: finalValue,
-                    },
-                });
-            }
             setInternalValue(finalValue);
+            event.target.value = finalValue;
+            onChange?.(event);
         }
+        onBlur?.(event);
     };
 
+    const containerClasses = `w-full flex items-center gap-sm ${labelPosition === 'top' ? 'flex-col justify-center gap-xxs' : ''} ${className}`;
+    const labelClasses = `text-sm text-main-500 font-medium text-center ${labelPosition === 'top' ? 'w-[80%] block mb-0' : type === 'number' ? 'w-1/2 shrink-0' : 'min-[769px]:w-auto max-[768px]:w-[30%]'}`;
+    const inputClasses = `border border-main-300 rounded-sm text-base text-main-600 bg-main-200 px-md py-sm transition-all
+                        focus:outline-none focus:border-main-500 focus:ring-1 focus:ring-main-300 
+                        disabled:bg-main-300 disabled:cursor-not-allowed disabled:opacity-80
+                        placeholder:text-main-500 placeholder:opacity-70 
+                        ${type === 'number' ? 'w-16' : 'w-full'}`;
+
     return (
-        <div className={`${styles.inputGroup} ${styles[labelPosition]} ${styles[type]} ${className}`}>
-            {label && (
-                <label htmlFor={inputId} className={styles.label}>
-                    {label}
-                </label>
-            )}
-            <input
-                id={inputId}
-                type={type}
-                value={internalValue}
-                onChange={handleInputChange}
-                onBlur={handleInputBlur}
-                placeholder={placeholder}
-                disabled={disabled}
-                className={styles.input}
-                min={min}
-                max={max}
-                step={step}
-                name={name}
-                {...rest}
-            />
+        <div className={containerClasses}>
+            {label && <label htmlFor={inputId} className={labelClasses}>{label}</label>}
+            <div className="w-1/2 flex items-center justify-center">
+                <input
+                    id={inputId}
+                    type={type}
+                    name={name}
+                    min={min}
+                    max={max}
+                    step={step}
+                    value={internalValue}
+                    onChange={handleInputChange}
+                    onBlur={handleInputBlur}
+                    placeholder={placeholder}
+                    disabled={disabled}
+                    className={inputClasses}
+                    {...rest}
+                />
+            </div>
         </div>
     );
 }
