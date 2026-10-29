@@ -5,10 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
-import { useBackendStatus } from '@/hooks/useBackendStatus';
 import { useGenerateWorksheet } from '@/hooks/useGenerateWorksheet';
-import { fetchProblemsList } from '@/services/worksheetApi';
-import { curriculumData } from '@/lib/curriculum';
+import { buildMixedWorksheet } from '@/lib/mixedWorksheet';
+import { supportedCurriculumData } from '@/lib/curriculum';
+import { normalizeWorksheetSettings } from '@/lib/worksheetSettings';
 import { useAuth } from '@/context/AuthContext';
 
 import SubjectHeader from '@/components/worksheet/SubjectHeader';
@@ -18,9 +18,8 @@ import { Button } from '@/components/ui';
 import Sidebar from '@/components/worksheet/Sidebar';
 
 function PageContent() {
-  const { statusMessage, isLoading: statusLoading, error: statusError } = useBackendStatus();
   const { generate, loading: generateLoading, error: generateError, pdfUrl } = useGenerateWorksheet();
-  const { authApi, isLoggedIn } = useAuth();
+  const { authApi, isLoggedIn, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   const [topicSelectionMode, setTopicSelectionMode] = useState('single');
@@ -37,6 +36,7 @@ function PageContent() {
   const templateIdFromUrl = searchParams.get('templateId');
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [saveTemplateError, setSaveTemplateError] = useState(null);
+  const [loadTemplateError, setLoadTemplateError] = useState(null);
 
   const [currentEditingTemplate, setCurrentEditingTemplate] = useState(null);
   const [shouldOpenSaveFormAfterLoad, setShouldOpenSaveFormAfterLoad] = useState(false);
@@ -49,7 +49,7 @@ function PageContent() {
   const handleSaveTemplate = async (templateData) => {
     if (!isLoggedIn) {
       toast.error("You must be logged in to save templates.");
-      return;
+      return false;
     }
     setIsSavingTemplate(true);
     setSaveTemplateError(null);
@@ -65,100 +65,57 @@ function PageContent() {
         console.log("Template saved successfully:", response.data);
       }
       setCurrentEditingTemplate(null);
+      return true;
     } catch (error) {
       console.error("Failed to save template:", error.response?.data || error.message);
       const msg = error.response?.data?.detail || "Failed to save template.";
       setSaveTemplateError(msg);
       toast.error(msg);
+      return false;
     } finally {
       setIsSavingTemplate(false);
     }
   };
 
   useEffect(() => {
+    let cancelled = false;
     const loadTemplate = async () => {
-      let settingsToLoad = null;
-      let loadedFrom = '';
-
-      if (typeof window !== 'undefined') {
-        const tempLoadTemplateJson = localStorage.getItem('tempLoadTemplate');
-        if (tempLoadTemplateJson) {
-          settingsToLoad = JSON.parse(tempLoadTemplateJson);
-          loadedFrom = 'localStorage';
-          localStorage.removeItem('tempLoadTemplate');
-        }
-      }
-
-      if (!settingsToLoad && templateIdFromUrl && isLoggedIn && isMounted) {
-        try {
+      try {
+        let settingsToLoad;
+        let editingTemplate = null;
+        if (templateIdFromUrl) {
+          if (!isLoggedIn) {
+            setLoadTemplateError('Log in on the Templates page before editing a template.');
+            return;
+          }
           const response = await authApi.get(`/templates/${templateIdFromUrl}`);
           settingsToLoad = response.data.settings_json;
-          loadedFrom = 'api';
-        } catch (error) {
-          console.error("Failed to load template from API:", error.response?.data || error.message);
-          alert("Failed to load template for editing. It might not exist or you don't have access.");
-          navigate('/', { replace: true });
-          return;
+          editingTemplate = response.data;
+        } else {
+          const stored = localStorage.getItem('tempLoadTemplate');
+          if (!stored) return;
+          localStorage.removeItem('tempLoadTemplate');
+          settingsToLoad = JSON.parse(stored);
         }
-      }
-
-      if (settingsToLoad) {
-        console.log(`Loading template settings from ${loadedFrom}:`, settingsToLoad);
-
-        const loadedUniformSettings = settingsToLoad.uniformSettings || {};
-
-        setUniformSettings({
-          pageCount: loadedUniformSettings.pageCount ?? 1, 
-          problemsPerPage: loadedUniformSettings.problemsPerPage ?? 10,
-          includeAnswerKey: loadedUniformSettings.includeAnswerKey ?? true, 
-          mixedProblems: loadedUniformSettings.mixedProblems ?? false,
-        });
-
-        setTopicSelectionMode(loadedUniformSettings.mixedProblems ? 'multi' : 'single');
-
-        const loadedInstances = (settingsToLoad.selectedTopicInstances || []).map(inst => ({
-          ...inst,
-          id: inst.id || uuidv4()
-        }));
-        setSelectedTopicInstances(loadedInstances);
-
-        if (loadedFrom === 'api') {
-          navigate('/', { replace: true });
-        }
-
-        if (templateIdFromUrl) {
+        const settings = normalizeWorksheetSettings(settingsToLoad);
+        if (cancelled) return;
+        setLoadTemplateError(null);
+        setUniformSettings(settings.uniformSettings);
+        setTopicSelectionMode(settings.topicSelectionMode);
+        setSelectedTopicInstances(settings.selectedTopicInstances);
+        setCurrentEditingTemplate(editingTemplate);
+        if (editingTemplate) {
           setShouldOpenSaveFormAfterLoad(true);
+          navigate('/', { replace: true });
         }
+      } catch (error) {
+        if (!cancelled) setLoadTemplateError(`Unable to load template. ${error instanceof SyntaxError ? 'Stored settings are not valid JSON.' : error.message}`);
       }
     };
 
-    if (isMounted && !generateLoading) {
-      loadTemplate();
-    }
-  }, [templateIdFromUrl, isLoggedIn, isMounted, authApi, generateLoading]);
-
-  useEffect(() => {
-    if (shouldOpenSaveFormAfterLoad && currentEditingTemplate) {
-      // Find the sidebar component and set its showSaveForm state
-      // This requires a ref, or passing a function down the tree.
-      // Let's pass a function down.
-      // This also needs to be passed to SidebarWrapper
-    }
-  }, [shouldOpenSaveFormAfterLoad, currentEditingTemplate]);
-
-  const getDefaultModifiersForTopic = (topicId) => {
-    return {
-      problem: {
-        digits: 2,
-        dec: 0,
-        neg: 0,
-        frac: false,
-      },
-      answer: {
-        round: 0,
-      },
-    };
-  };
+    if (isMounted && !authLoading) loadTemplate();
+    return () => { cancelled = true; };
+  }, [templateIdFromUrl, isLoggedIn, isMounted, authLoading, authApi, navigate]);
 
   const addTopicInstance = (topicWithSubject) => {
     const defaultModifiers = {
@@ -176,9 +133,9 @@ function PageContent() {
     const newInstance = {
       id: uuidv4(),
       subject: topicWithSubject.subject,
-      topicId: topicWithSubject.id,
-      topicName: topicWithSubject.name,
-      modifiers: { ...defaultModifiers },
+      topicId: topicWithSubject.topicId || topicWithSubject.id,
+      topicName: topicWithSubject.topicName || topicWithSubject.name,
+      modifiers: structuredClone(topicWithSubject.modifiers || defaultModifiers),
     };
 
     setSelectedTopicInstances((prevInstances) => {
@@ -205,7 +162,7 @@ function PageContent() {
   };
 
   const handleTopicCardClick = (topic) => {
-    const subjectOfClickedTopic = curriculumData.find(s =>
+    const subjectOfClickedTopic = supportedCurriculumData.find(s =>
       s.topics.some(t => t.id === topic.id)
     )?.subject;
 
@@ -227,70 +184,21 @@ function PageContent() {
       toast.error("Please select at least one topic to generate.");
       return;
     }
-    let finalGenerationRequest = {};
-
-    if (uniformSettingsFromSidebar.mixedProblems) {
-      let allProblemsToMix = [];
-      const totalProblemsPerMixedWorksheet = uniformSettingsFromSidebar.pageCount * uniformSettingsFromSidebar.problemsPerPage;
-
-      const problemsPerTopicInstance = Math.ceil(totalProblemsPerMixedWorksheet / selectedTopicInstances.length);
-
-      for (const instance of selectedTopicInstances) {
-        const problemRequest = {
-          subject: instance.subject,
-          topic: [instance.topicId],
-          page_count: 1,
-          problems_per_page: problemsPerTopicInstance,
-          include_answer_key: false,
-          modifiers: instance.modifiers,
-        };
-
-        try {
-          const problemsFromInstance = await fetchProblemsList(problemRequest);
-          allProblemsToMix.push(...problemsFromInstance);
-        } catch (error) {
-          console.error(`Failed to get problems for ${instance.topicName}:`, error);
-          throw new Error(`Failed to get problems for ${instance.topicName}.`);
-        }
+    return generate(async () => {
+      const settings = normalizeWorksheetSettings({ selectedTopicInstances,
+        uniformSettings: uniformSettingsFromSidebar, topicSelectionMode });
+      if (settings.uniformSettings.mixedProblems) {
+        return buildMixedWorksheet(settings.selectedTopicInstances, settings.uniformSettings);
       }
-
-      for (let i = allProblemsToMix.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [allProblemsToMix[i], allProblemsToMix[j]] = [allProblemsToMix[j], allProblemsToMix[i]];
-      }
-
-      if (allProblemsToMix.length > totalProblemsPerMixedWorksheet) {
-        allProblemsToMix = allProblemsToMix.slice(0, totalProblemsPerMixedWorksheet);
-      } else if (allProblemsToMix.length < totalProblemsPerMixedWorksheet) {
-        const msg = `Not enough problems generated (${allProblemsToMix.length}) for desired total (${totalProblemsPerMixedWorksheet}). Generating with available problems.`;
-        console.warn(msg); 
-        toast.warn(msg);
-      }
-
-      finalGenerationRequest = {
-        subject: selectedTopicInstances[0].subject,
-        topic: ["mixed"],
-        page_count: uniformSettingsFromSidebar.pageCount,
-        include_answer_key: uniformSettingsFromSidebar.includeAnswerKey,
-        problems_per_page: uniformSettingsFromSidebar.problemsPerPage,
-        mixed_problems_data: allProblemsToMix,
-        modifiers: {}
-      };
-
-      generate([finalGenerationRequest]);
-
-    } else {
-      finalGenerationRequest = selectedTopicInstances.map(instance => ({
+      return settings.selectedTopicInstances.map(instance => ({
         subject: instance.subject,
         topic: [instance.topicId],
-        page_count: uniformSettingsFromSidebar.pageCount,
-        include_answer_key: uniformSettingsFromSidebar.includeAnswerKey,
-        problems_per_page: uniformSettingsFromSidebar.problemsPerPage,
+        page_count: settings.uniformSettings.pageCount,
+        include_answer_key: settings.uniformSettings.includeAnswerKey,
+        problems_per_page: settings.uniformSettings.problemsPerPage,
         modifiers: instance.modifiers,
       }));
-
-      generate(finalGenerationRequest);
-    }
+    });
   };
 
   return (
@@ -302,10 +210,15 @@ function PageContent() {
         </h1>
 
         <HowToUse />
+        {loadTemplateError && <p role="alert">{loadTemplateError}</p>}
 
         <div className="flex justify-center gap-md ">
           <Button
-            onClick={() => { setTopicSelectionMode('single'); setSelectedTopicInstances([]); }}
+            onClick={() => {
+              setTopicSelectionMode('single');
+              setSelectedTopicInstances([]);
+              setUniformSettings(settings => ({ ...settings, mixedProblems: false }));
+            }}
             variant={topicSelectionMode === 'single' ? 'primary' : 'secondary'}
             className="min-[769px]:min-w-[150px]"
           >
@@ -321,7 +234,7 @@ function PageContent() {
         </div>
 
         <div className="flex flex-col gap-lg">
-          {curriculumData.map(subjectData => (
+          {supportedCurriculumData.map(subjectData => (
             <React.Fragment key={subjectData.subject}>
               <SubjectHeader title={subjectData.subject} />
 
@@ -356,11 +269,14 @@ function PageContent() {
           onGenerate={handleGenerateButtonClick}
           isGenerating={generateLoading}
           generateError={generateError}
+          pdfUrl={pdfUrl}
           uniformSettings={uniformSettings}
           onSaveTemplate={handleSaveTemplate}
           isSavingTemplate={isSavingTemplate}
           saveTemplateError={saveTemplateError}
           currentEditingTemplate={currentEditingTemplate}
+          shouldOpenSaveFormOnInit={shouldOpenSaveFormAfterLoad}
+          onSaveFormOpened={() => setShouldOpenSaveFormAfterLoad(false)}
         />
       )}
     </div>

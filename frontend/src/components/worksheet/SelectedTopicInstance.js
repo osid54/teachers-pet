@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import { Button, Input, Checkbox } from '@/components/ui';
 
 export default function SelectedTopicInstance({
@@ -49,9 +48,9 @@ export default function SelectedTopicInstance({
                 </h4>
                 <div className="flex gap-xs">
                     {mode === 'multi' && (
-                        <Button onClick={() => onAddInstance(instance)} variant="primary" className="p-xs w-[30px] h-[30px] text-sm">+</Button>
+                        <Button onClick={() => onAddInstance(instance)} aria-label={`Duplicate ${instance.topicName}`} variant="primary" className="p-xs w-[30px] h-[30px] text-sm">+</Button>
                     )}
-                    <Button onClick={() => onRemove(instance.id)} variant="primary" className="p-xs w-[30px] h-[30px] text-sm">x</Button>
+                    <Button onClick={() => onRemove(instance.id)} aria-label={`Remove ${instance.topicName}`} variant="primary" className="p-xs w-[30px] h-[30px] text-sm">x</Button>
                 </div>
             </div>
 

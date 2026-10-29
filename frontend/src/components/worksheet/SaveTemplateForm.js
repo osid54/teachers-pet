@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Input, Checkbox, Button } from '@/components/ui';
 import { PREDEFINED_TAGS } from '@/lib/constants';
 
@@ -12,47 +12,36 @@ export default function SaveTemplateForm({
     initialTemplateData,
     isSaving = false,
     saveError = null,
+    mode,
 }) {
     const [name, setName] = useState(initialTemplateData?.name || '');
     const [description, setDescription] = useState(initialTemplateData?.description || '');
     const [isPublic, setIsPublic] = useState(initialTemplateData?.is_public || false);
     const [tags, setTags] = useState(initialTemplateData?.tags || []);
 
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
-
-    useEffect(() => {
-        if (initialTemplateData) { 
-            setName(initialTemplateData.name || '');
-            setDescription(initialTemplateData.description || '');
-            setIsPublic(initialTemplateData.is_public || false);
-            setTags(initialTemplateData.tags || []);
-            setError(null);
-        } else {
-            setName('');
-            setDescription('');
-            setIsPublic(false);
-            setTags([]);
-        }
-    }, [initialTemplateData]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError(null);
+        if (!name.trim()) {
+            setError('Template name cannot be blank.');
+            return;
+        }
         if (currentSelectedTopics.length === 0) {
             const msg = "Please select at least one topic to save a template.";
             setError(msg);
-            toast.error(msg);
             return;
         }
 
         const templateSettings = {
             selectedTopicInstances: currentSelectedTopics,
             uniformSettings: currentUniformSettings,
+            topicSelectionMode: mode,
         };
 
         const templateToSave = {
-            name,
+            name: name.trim(),
             description: description || null,
             settings_json: templateSettings,
             is_public: isPublic,

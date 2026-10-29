@@ -33,3 +33,5 @@ export const curriculumData = [
         ]
     }
 ];
+
+export const supportedCurriculumData = curriculumData.filter(subject => subject.subject === 'Arithmetic');

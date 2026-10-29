@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 
 export default function Input({
     label,
@@ -17,9 +17,11 @@ export default function Input({
     labelPosition = 'inline',
     maxDigits,
     name,
+    onBlur,
     ...rest
 }) {
-    const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+    const generatedId = useId();
+    const inputId = id || generatedId;
 
     const formatValue = (val) => (val === null || val === undefined ? '' : String(val));
     const [internalValue, setInternalValue] = useState(formatValue(value));
@@ -39,8 +41,8 @@ export default function Input({
         }
 
         setInternalValue(val);
-
-        onChange(event);
+        event.target.value = val;
+        onChange?.(event);
     };
 
     const handleInputBlur = (event) => {
@@ -55,8 +57,10 @@ export default function Input({
             }
 
             setInternalValue(finalValue);
-            onChange(event);
+            event.target.value = finalValue;
+            onChange?.(event);
         }
+        onBlur?.(event);
     };
 
     const containerClasses = `w-full flex items-center gap-sm ${labelPosition === 'top' ? 'flex-col justify-center gap-xxs' : ''} ${className}`;
@@ -74,6 +78,10 @@ export default function Input({
                 <input
                     id={inputId}
                     type={type}
+                    name={name}
+                    min={min}
+                    max={max}
+                    step={step}
                     value={internalValue}
                     onChange={handleInputChange}
                     onBlur={handleInputBlur}

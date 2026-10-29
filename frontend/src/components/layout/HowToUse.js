@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui';
 
 const LOCAL_STORAGE_KEY = 'howToUseSectionOpen';

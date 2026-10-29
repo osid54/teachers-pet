@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 import SelectedTopicInstance from './SelectedTopicInstance';
 
 export default function SelectedTopicsList({

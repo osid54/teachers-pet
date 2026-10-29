@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Input, Checkbox } from '@/components/ui';
 
 export default function UniformSettingsForm({ settings, onChange, mode }) {
