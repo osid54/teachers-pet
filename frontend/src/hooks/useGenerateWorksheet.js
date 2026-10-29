@@ -9,10 +9,8 @@ export function useGenerateWorksheet() {
   const [pdfUrl, setPdfUrl] = useState('');
 
   useEffect(() => {
-    if (error) {
-      console.error("Worksheet Generation Error:", error);
-    }
-  }, [error]);
+    return () => { if (pdfUrl) window.URL.revokeObjectURL(pdfUrl); };
+  }, [pdfUrl]);
 
   const generate = async (worksheetData) => {
     setLoading(true);
@@ -20,10 +18,11 @@ export function useGenerateWorksheet() {
     setPdfUrl('');
 
     try {
-      const pdfBlob = await generateWorksheetPDF(worksheetData);
+      const request = typeof worksheetData === 'function' ? await worksheetData() : worksheetData;
+      const pdfBlob = await generateWorksheetPDF(request);
       const url = window.URL.createObjectURL(pdfBlob);
       setPdfUrl(url);
-      window.open(url, '_blank');
+      window.open(url, '_blank', 'noopener,noreferrer');
     } catch (err) {
       setError(err);
     } finally {

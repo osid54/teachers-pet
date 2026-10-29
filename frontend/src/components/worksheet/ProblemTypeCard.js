@@ -1,10 +1,18 @@
 'use client';
 
-import React from 'react';
 
 export default function ProblemTypeCard({ topic, onSelect, isSelected }) {
   return (
     <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={isSelected}
+      onKeyDown={event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onSelect(topic);
+        }
+      }}
       onClick={() => onSelect(topic)}
         className={`bg-main-100 rounded-md cursor-pointer transition-all duration-200 text-center flex flex-col border-2 hover:-translate-y-[5px] shadow-sm
               p-sm min-[769px]:p-md h-30 w-30 min-[769px]:w-60 min-[769px]:h-60 items-center

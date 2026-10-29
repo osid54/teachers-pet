@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button, Input, Checkbox } from '@/components/ui';
 import { Link, useNavigate } from 'react-router-dom';
@@ -41,7 +41,7 @@ export default function TemplatesPage() {
 
     useEffect(() => { setIsMounted(true); }, [isLoggedIn]);
 
-    const fetchTemplates = useCallback(async () => {
+    const fetchTemplates = useCallback(async (signal) => {
         if (!isMounted || authLoading || !authApi) {
             return;
         }
@@ -60,15 +60,35 @@ export default function TemplatesPage() {
                     sort_by: sortBy,
                     sort_order: sortOrder,
                 };
-                response = await authApi.get('/templates/public', { params });
+                response = await authApi.get('/templates/public', { params, signal, paramsSerializer: { indexes: null } });
             } else if (activeTab === 'my' && isLoggedIn) {
-                response = await authApi.get('/templates/me');
+                response = await authApi.get('/templates/me', { signal });
+                const query = searchQuery.toLowerCase();
+                response.data = response.data.filter(template =>
+                    `${template.name} ${template.description || ''}`.toLowerCase().includes(query) &&
+                    selectedTags.every(tag => template.tags?.includes(tag))
+                ).sort((first, second) => {
+                    const comparison = sortBy === 'likes_count'
+                        ? first.likes_count - second.likes_count
+                        : new Date(first.created_at) - new Date(second.created_at);
+                    return sortOrder === 'asc' ? comparison : -comparison;
+                });
             } else if (activeTab === 'saved' && isLoggedIn) {
-                response = await authApi.get('/templates/saved');
+                response = await authApi.get('/templates/saved', {
+                    signal,
+                    params: { skip: currentPage * templatesPerPage, limit: templatesPerPage,
+                        q: searchQuery || undefined, tags: selectedTags.length ? selectedTags : undefined,
+                        sort_by: sortBy, sort_order: sortOrder },
+                    paramsSerializer: { indexes: null },
+                });
+            } else {
+                setPublicTemplates([]);
+                return;
             }
 
-            setPublicTemplates(response.data);
+            if (!signal?.aborted) setPublicTemplates(response.data);
         } catch (err) {
+            if (signal?.aborted) return;
             console.error(`Failed to fetch ${activeTab} templates:`, err.response?.data || err.message);
             const msg = err.response?.data?.detail || `Failed to load ${activeTab} templates.`;
             setTemplatesError(msg);
@@ -77,9 +97,9 @@ export default function TemplatesPage() {
                 logout();
             }
         } finally {
-            setIsLoadingTemplates(false);
+            if (!signal?.aborted) setIsLoadingTemplates(false);
         }
-    }, [activeTab, isLoggedIn, isMounted, authLoading, authApi, currentPage, searchQuery, selectedTags, sortBy, sortOrder]);
+    }, [activeTab, isLoggedIn, isMounted, authLoading, authApi, currentPage, searchQuery, selectedTags, sortBy, sortOrder, logout]);
 
 
     const handleUseTemplate = (template) => {
@@ -106,7 +126,7 @@ export default function TemplatesPage() {
                     t.id === templateId ? { ...t, likes_count: response.data.likes_count } : t
                 ));
             } else if (activeTab === 'my') {
-                setMyTemplates(prev => prev.map(t =>
+                setPublicTemplates(prev => prev.map(t =>
                     t.id === templateId ? { ...t, likes_count: response.data.likes_count } : t
                 ));
             }
@@ -143,9 +163,6 @@ export default function TemplatesPage() {
         try {
             await authApi.delete(`/templates/${templateId}`);
             toast.success("Template deleted successfully!");
-            if (activeTab === 'my') {
-                setMyTemplates(prev => prev.filter(t => t.id !== templateId));
-            }
             setPublicTemplates(prev => prev.filter(t => t.id !== templateId));
         } catch (err) {
             console.error("Failed to delete template:", err.response?.data || err.message);
@@ -155,10 +172,17 @@ export default function TemplatesPage() {
     };
 
     useEffect(() => {
-        if (isMounted && !authLoading && authApi) {
-            fetchTemplates();
+        const controller = new AbortController();
+        fetchTemplates(controller.signal);
+        return () => controller.abort();
+    }, [fetchTemplates]);
+
+    useEffect(() => {
+        if (!authLoading && !isLoggedIn) {
+            setActiveTab('public');
+            setCurrentPage(0);
         }
-    }, [activeTab, isLoggedIn, isMounted, authLoading, authApi]); 
+    }, [authLoading, isLoggedIn]);
 
     const handleLoginSubmit = async (e) => {
         e.preventDefault();
@@ -248,7 +272,7 @@ export default function TemplatesPage() {
                     {['public', 'my', 'saved'].map((tab) => (
                         <Button
                             key={tab}
-                            onClick={() => setActiveTab(tab)}
+                            onClick={() => { setActiveTab(tab); setCurrentPage(0); }}
                             variant={activeTab === tab ? 'primary' : 'secondary'}
                         >
                             {tab.charAt(0).toUpperCase() + tab.slice(1)} Templates
@@ -259,7 +283,7 @@ export default function TemplatesPage() {
                                 Create New Template
                             </Button>
                         </Link>
-                    <Button onClick={logout} variant="secondary">Logout</Button>
+                    <Button onClick={() => logout()} variant="secondary">Logout</Button>
                 </div>
             )}
 
@@ -315,6 +339,7 @@ export default function TemplatesPage() {
                     </div>
                 </div>
 
+                {templatesError && <p role="alert">{templatesError}</p>}
                 <TemplateListGrid
                     templates={publicTemplates}
                     isLoading={isLoadingTemplates}
@@ -328,10 +353,10 @@ export default function TemplatesPage() {
                     activeTab={activeTab}
                 />
 
-                <div className="flex justify-center gap-md mt-0 mb-xxl">
+                {activeTab !== 'my' && <div className="flex justify-center gap-md mt-0 mb-xxl">
                     <Button onClick={() => setCurrentPage(prev => prev - 1)} disabled={currentPage === 0}>Previous</Button>
                     <Button onClick={() => setCurrentPage(prev => prev + 1)} disabled={publicTemplates.length < templatesPerPage}>Next</Button>
-                </div>
+                </div>}
             </section>
         </div>
     );

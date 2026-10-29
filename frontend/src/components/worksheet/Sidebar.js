@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui';
 import UniformSettingsForm from './UniformSettingsForm';
@@ -10,13 +10,24 @@ import SaveTemplateForm from './SaveTemplateForm';
 export default function WorksheetGenerationSidebar({
     mode, selectedTopicInstances, onUniformSettingChange, onTopicInstanceModifierChange,
     onAddTopicInstance, onRemoveTopicInstance, onGenerate, isGenerating,
-    uniformSettings, onSaveTemplate, isSavingTemplate, saveTemplateError,
-    currentEditingTemplate, shouldOpenSaveFormOnInit
+    uniformSettings, onSaveTemplate, isSavingTemplate, saveTemplateError, generateError, pdfUrl,
+    currentEditingTemplate, shouldOpenSaveFormOnInit, onSaveFormOpened
 }) {
     const [showSaveForm, setShowSaveForm] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => { setIsMounted(true); }, []);
+
+    useEffect(() => {
+        if (shouldOpenSaveFormOnInit) {
+            setShowSaveForm(true);
+            onSaveFormOpened?.();
+        }
+    }, [shouldOpenSaveFormOnInit, onSaveFormOpened]);
+
+    const handleSaveFormSubmit = async (data) => {
+        if (await onSaveTemplate(data)) setShowSaveForm(false);
+    };
 
     if (!isMounted) return null;
 
@@ -30,22 +41,27 @@ export default function WorksheetGenerationSidebar({
             {showSaveForm && (
                 (!currentEditingTemplate || (currentEditingTemplate && currentEditingTemplate.id)) ? (
                     <SaveTemplateForm
+                        key={currentEditingTemplate?.id || 'new'}
                         currentSelectedTopics={selectedTopicInstances}
                         currentUniformSettings={uniformSettings}
-                        onClose={handleSaveFormClose}
+                        onClose={() => setShowSaveForm(false)}
                         onSubmit={handleSaveFormSubmit}
+                        mode={mode}
                         isSaving={isSavingTemplate}
                         saveError={saveTemplateError}
                         initialTemplateData={currentEditingTemplate}
                     />
                 ) : (
-                    <p className={styles.loadingMessage}>Loading template for edit...</p>
+                    <p>Loading template for edit...</p>
                 )
             )}
 
             <h2 className="font-bold text-main-600 text-center mb-sm text-lg min-[769px]:text-h3">
                 Customize Worksheet
             </h2>
+
+            {generateError && <p role="alert">{generateError.message || 'Worksheet generation failed.'}</p>}
+            {pdfUrl && <a className="block text-main-700 underline text-center" href={pdfUrl} download="worksheet.pdf">Download Worksheet</a>}
 
             <section className="mb-sm py-md shadow-md">
                 <h3 className="text-main-500 font-semibold text-center text-lg mb-sm">General Settings</h3>
@@ -85,6 +101,7 @@ export default function WorksheetGenerationSidebar({
                 <Button
                     onClick={() => selectedTopicInstances.length ? setShowSaveForm(true) : toast.error("Select a topic first.")}
                     disabled={isSaveButtonDisabled}
+                    aria-label="Save template"
                     className="w-[20%]"
                 >
                     <svg className="w-6 h-6 min-[769px]:w-8 min-[769px]:h-8 mx-auto" fill="none" viewBox="0 0 24 24">

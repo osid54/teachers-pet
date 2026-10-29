@@ -1,6 +1,5 @@
 'use client';
 
-import React from 'react';
 
 const variantStyles = {
     primary: 'bg-main-600 text-main-100 enabled:hover:bg-[hsl(0_8%_35%)]',

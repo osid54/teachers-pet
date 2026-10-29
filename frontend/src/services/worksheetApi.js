@@ -9,13 +9,25 @@ const api = axios.create({
   },
 });
 
+const apiError = async (error, fallback) => {
+  let data = error.response?.data;
+  if (data instanceof Blob) data = await data.text();
+  if (typeof data === 'string') {
+    try { data = JSON.parse(data); } catch { data = null; }
+  }
+  const detail = data?.detail;
+  const message = typeof detail === 'string' ? detail : Array.isArray(detail)
+    ? detail.map(item => item.msg).filter(Boolean).join('; ') : null;
+  return new Error(message || fallback, { cause: error });
+};
+
 export const fetchBackendStatus = async () => {
   try {
     const response = await api.get('/');
     return response.data;
   } catch (error) {
     console.error("Error fetching backend status:", error);
-    throw new Error('Failed to connect to backend.');
+    throw new Error('Failed to connect to backend.', { cause: error });
   }
 };
 
@@ -24,17 +36,7 @@ export const fetchProblemsList = async (requestData) => {
     const response = await api.post('/get-problems', requestData);
     return response.data;
   } catch (error) {
-    console.error("Error fetching raw problems:", error.response?.data || error.message);
-    if (error.response && error.response.data) {
-      const errorText = await new Blob([error.response.data]).text();
-      try {
-        const errorJson = JSON.parse(errorText);
-        throw new Error(errorJson.detail || "Unknown error fetching problems.");
-      } catch (parseError) {
-        throw new Error(errorText || "Unknown error fetching problems.");
-      }
-    }
-    throw new Error('Failed to fetch problems due to network or server error.');
+    throw await apiError(error, 'Failed to fetch problems due to network or server error.');
   }
 };
 
@@ -45,12 +47,6 @@ export const generateWorksheetPDF = async (generationRequests) => {
     });
     return response.data;
   } catch (error) {
-    if (error.response && error.response.data instanceof Blob) {
-      // Convert the error blob back to text to see the real message
-      const errorText = await error.response.data.text();
-      const errorJson = JSON.parse(errorText);
-      throw new Error(errorJson.detail || "Server failed to generate worksheet.");
-    }
-    throw error;
+    throw await apiError(error, 'Failed to generate worksheet.');
   }
 };
