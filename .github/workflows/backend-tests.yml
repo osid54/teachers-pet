@@ -12,6 +12,16 @@ on:
       - 'backend/**'
       - '.github/workflows/backend-tests.yml'
   workflow_dispatch:
+    inputs:
+      erase_demo_data:
+        description: Permanently erase demo accounts, templates, likes, and favorites in the existing Railway database
+        required: true
+        type: boolean
+        default: false
+      database_name:
+        description: Exact PostgreSQL database name, not a connection URL (required only for a reset)
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -87,3 +97,35 @@ jobs:
         run: python -m alembic check
       - name: Test disposable database and API workflows
         run: python -m unittest discover -s tests -p test_database.py -v
+
+  reset-demo:
+    if: github.event_name == 'workflow_dispatch' && inputs.erase_demo_data && github.ref == 'refs/heads/backend-stabilization'
+    needs: [test, database]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: demo-database-reset
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}
+      EXPECTED_DATABASE: ${{ inputs.database_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require target configuration
+        run: |
+          test -n "$DATABASE_URL" || { echo "Missing RAILWAY_DATABASE_URL environment secret."; exit 1; }
+          test -n "$EXPECTED_DATABASE" || { echo "An exact database name is required."; exit 1; }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Erase and recreate explicitly confirmed demo tables
+        run: python reset_demo_database.py --confirm-database "$EXPECTED_DATABASE" --confirm ERASE_TEACHERS_PET_DEMO
+      - name: Verify recreated schema
+        run: |
+          python -m alembic current
+          python -m alembic check
