@@ -1,6 +1,8 @@
 import os
 import re
+import tempfile
 import unittest
+from pathlib import Path
 
 os.environ["DATABASE_URL"] = "postgresql+asyncpg://test:test@localhost/test"
 os.environ["SECRET_KEY"] = "test-only-secret-key"
@@ -9,6 +11,7 @@ from pydantic import ValidationError
 
 from main import SectionRequest
 from pdf_generator.main import create_pdf_worksheet
+from pdf_generator.samples import generate_samples
 from problem_generator.problems import MathProblem
 
 
@@ -53,6 +56,16 @@ class SectionRequestTests(unittest.TestCase):
 
 
 class PdfPaginationTests(unittest.TestCase):
+    def test_review_samples_have_expected_page_counts(self):
+        with tempfile.TemporaryDirectory() as output_directory:
+            samples = generate_samples(output_directory)
+            self.assertEqual(len(samples), 5)
+            for sample in samples:
+                with self.subTest(sample=sample["file"]):
+                    pdf = (Path(output_directory) / sample["file"]).read_bytes()
+                    self.assertTrue(pdf.startswith(b"%PDF-"))
+                    self.assertEqual(len(re.findall(rb"/Type\s*/Page\b", pdf)), sample["expected_total_pages"])
+
     def test_supported_page_densities_do_not_spill_to_extra_pages(self):
         for per_page in (1, 6, 10, 50):
             with self.subTest(problems_per_page=per_page):

@@ -32,6 +32,10 @@ Record the Python version, failing test names, and complete tracebacks. The init
 
 ## 3. Inspect real PDFs locally
 
+You can download PDFs without Python: open a successful **Backend Tests** run in GitHub's Actions tab, scroll to **Artifacts**, and download `backend-pdf-samples-<run number>`. Extract the ZIP and open the five PDFs. `manifest.json` lists expected page/problem counts; `README.txt` lists visual checks. Artifacts expire after 14 days. They contain synthetic data only.
+
+To reproduce the artifact on a Python PC, run `python -m pdf_generator.samples --output-dir artifacts/pdf-samples` from `backend/`. This command does not import the API, use environment credentials, or connect to a database. Do not commit generated PDFs.
+
 Call `pdf_generator.main.create_pdf_worksheet` directly from a local script using synthetic section/problem dictionaries, then write the returned buffer to a PDF. No API server or database is needed. The existing pagination test demonstrates the input shape.
 
 Review these cases, adding regression tests for failures:

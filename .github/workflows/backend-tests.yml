@@ -36,3 +36,12 @@ jobs:
         run: python -m compileall -q main.py database.py models.py pdf_generator problem_generator tests
       - name: Run database-free regression tests
         run: python -m unittest discover -s tests -v
+      - name: Generate synthetic PDF review samples
+        run: python -m pdf_generator.samples --output-dir artifacts/pdf-samples
+      - name: Upload PDF review samples
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-pdf-samples-${{ github.run_number }}
+          path: backend/artifacts/pdf-samples/
+          if-no-files-found: error
+          retention-days: 14
