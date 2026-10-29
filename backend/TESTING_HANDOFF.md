@@ -4,9 +4,9 @@ The demo data is now explicitly disposable. For a reset within the existing Rail
 
 ## GitHub CI without the other PC
 
-The `Backend Tests` GitHub Actions workflow runs Python 3.12 syntax and database-free regression tests on backend pushes to `backend-stabilization` or `dev`, and relevant PRs. Open the repository's Actions tab to inspect results. It can also be started manually once the workflow is available in GitHub's default-branch workflow listing.
+The `Backend Tests` GitHub Actions workflow runs Python 3.12 syntax/generation tests and a separate PostgreSQL 16 job for fresh migrations, schema drift, database reset safety, and API/database workflows on relevant pushes and PRs. Open the repository's Actions tab to inspect results.
 
-CI has read-only repository permissions and does not receive production secrets, connect to PostgreSQL, run migrations, or deploy. A green run verifies only the automated cases; visual PDF inspection and migration-baseline verification below remain required. If a run fails, share the failing step and traceback rather than credentials.
+Normal push/PR test jobs use only a disposable `teachers_pet_ci` database and do not receive Railway credentials or deploy. The optional `reset-demo` job is different: it can access the existing Railway database only when manually requested on `backend-stabilization`, after tests pass, using the `demo-database-reset` environment's secret and any configured approval. See `RESET_DEMO_DATABASE.md` before enabling it. A green test run does not mean the Railway database was reset. Share failing test output rather than credentials.
 
 ## 1. Get the correct branch
 
@@ -28,9 +28,9 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m compileall -q .
 ```
 
-On macOS/Linux, use `python3.12` to create the environment and `.venv/bin/python` afterward. The tests set dummy environment variables and do not connect to PostgreSQL. Do not copy production credentials onto this PC just to run tests.
+On macOS/Linux, use `python3.12` to create the environment and `.venv/bin/python` afterward. Without `TEST_DATABASE_URL`, database integration tests are skipped and the other tests use dummy configuration. The integration suite refuses any database name other than `teachers_pet_ci`; leave it to CI unless deliberately provisioning a disposable test database. Do not use Railway credentials for automated tests.
 
-Record the Python version, failing test names, and complete tracebacks. The initial suite covers request validation and one PDF pagination case; passing it is not complete backend verification.
+Record the Python version, failing test names, and complete tracebacks. The suite covers request guards, PDF pagination/samples, and (in the separate database job) migrations and API/database workflows. Passing tests do not certify every visual or deployment behavior.
 
 ## 3. Inspect real PDFs locally
 
