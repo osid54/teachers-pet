@@ -47,23 +47,24 @@ describe('worksheet settings', () => {
 });
 
 const topics = [{ id: 'one', subject: 'Arithmetic', topicId: 'addition', topicName: 'Addition',
-    modifiers: { problem: { digits: 2, dec: 0, neg: 0 }, answer: { round: 0 } } }];
-const settings = { pageCount: 1, problemsPerPage: 10, mixedProblems: false, includeAnswerKey: true };
+    modifiers: { digits: 2, digit_mode: 'up_to', decimal_places: 0, negative_probability: 0,
+        allow_negative_answers: false, division_mode: 'exact', answer_rounding: null } }];
+const section = { id: 'section-1', mode: 'single', topics, pageCount: 1, problemsPerPage: 10 };
+const settings = { pageCount: 1, problemsPerPage: 10 };
 
 describe('template saving', () => {
-    it('includes the selection mode and current settings in the saved payload', () => {
+    it('includes sections, workflow, and answer-key mode in the saved payload', () => {
         const onSubmit = vi.fn();
-        render(<SaveTemplateForm currentSelectedTopics={topics} currentUniformSettings={settings}
-            mode="multi" onSubmit={onSubmit} />);
+        render(<SaveTemplateForm sections={[section]} workflowMode="single" answerKeyMode="separate" onSubmit={onSubmit} />);
         fireEvent.change(screen.getByLabelText('Template Name'), { target: { value: 'Practice' } });
         fireEvent.click(screen.getByRole('button', { name: 'Save Template' }));
         expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ name: 'Practice',
-            settings_json: { selectedTopicInstances: topics, uniformSettings: settings, topicSelectionMode: 'multi' } }));
+            settings_json: { sections: [section], workflowMode: 'single', answerKeyMode: 'separate' } }));
     });
 
     it('opens the sidebar form without undefined handlers and supports cancellation', () => {
-        render(<Sidebar mode="single" selectedTopicInstances={topics} uniformSettings={settings}
-            onSaveTemplate={vi.fn()} />);
+        render(<Sidebar mode="single" selectedTopicInstances={topics} uniformSettings={settings} sections={[section]}
+            workflowMode="single" answerKeyMode="none" onAnswerKeyModeChange={vi.fn()} onSaveTemplate={vi.fn()} />);
         fireEvent.click(screen.getByRole('button', { name: 'Save template' }));
         expect(screen.getByLabelText('Template Name')).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));

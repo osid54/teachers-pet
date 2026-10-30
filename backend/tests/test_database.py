@@ -117,6 +117,35 @@ class DatabaseWorkflowTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(saved.status_code, 200)
         self.assertEqual(saved.json(), [])
 
+    async def test_generates_pdf_from_ordered_single_and_mixed_sections(self):
+        response = await self.client.post("/generate-worksheet", json={
+            "seed": 54,
+            "answer_key_mode": "inline",
+            "sections": [
+                {"mode": "single", "page_count": 1, "problems_per_page": 2,
+                 "topics": [{"topic_id": "addition", "modifiers": {
+                     "digits": 3, "digit_mode": "strict", "decimal_places": 2,
+                     "negative_probability": 0, "answer_rounding": 2,
+                 }}]},
+                {"mode": "mixed", "page_count": 1, "problems_per_page": 3,
+                 "topics": [
+                    {"topic_id": "addition", "modifiers": {}},
+                    {"topic_id": "subtraction", "modifiers": {"negative_probability": 0.25}},
+                ]},
+            ],
+        })
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.headers["content-type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF-"))
+
+    async def test_rejects_empty_sections_and_invalid_mixed_section(self):
+        response = await self.client.post("/generate-worksheet", json={"sections": []})
+        self.assertEqual(response.status_code, 422)
+        response = await self.client.post("/generate-worksheet", json={"sections": [{
+            "mode": "mixed", "topics": [{"topic_id": "addition"}],
+        }]})
+        self.assertEqual(response.status_code, 422)
+
     async def test_reset_erases_records_and_recreates_migration_head(self):
         owner = await self.account("ci-owner")
         await self.template(owner)

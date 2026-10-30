@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException, Depends, status, Query, Request
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
-from typing import Literal, Optional, List, Union
+from typing import Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.future import select
@@ -16,6 +16,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.security.utils import get_authorization_scheme_param
 from jose import JWTError, jwt
 from starlette.concurrency import run_in_threadpool
+import random
 import logging
 import os
 import sys
@@ -26,8 +27,9 @@ sys.path.append(str(backend_path))
 
 from database import get_db
 from models import User, Template, user_likes_template, user_favorites_template
-from problem_generator.operations import generate_arithmetic_problems
+from problem_generator.worksheet import generate_section_problems
 from pdf_generator.main import create_pdf_worksheet
+from schemas import WorksheetRequest
 
 app = FastAPI(
     title="Teacher's Pet API",
@@ -138,46 +140,6 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True 
-
-class ProblemModifiers(BaseModel):
-    digits: int = Field(1, ge=1, le=5)
-    dec: int = Field(0, ge=0, le=5)
-    neg: int = Field(0, ge=0, le=4)
-    frac: bool = Field(False)
-
-class AnswerModifiers(BaseModel):
-    round: int = Field(0, ge=0, le=5)
-
-class ModifierSettings(BaseModel):
-    problem: ProblemModifiers = Field(default_factory=ProblemModifiers)
-    answer: AnswerModifiers = Field(default_factory=AnswerModifiers)
-
-class GeneratedProblem(BaseModel):
-    question: str = Field(max_length=500)
-    answer: Union[int, float]
-    topic: str = Field(default="", max_length=50)
-    num1: Optional[float] = Field(None, allow_inf_nan=False)
-    num2: Optional[float] = Field(None, allow_inf_nan=False)
-    symbol: Optional[Literal["+", "-", "*", "/"]] = None
-
-class SectionRequest(BaseModel):
-    subject: Literal["Arithmetic"]
-    topic: list[str] = Field(..., min_length=1, max_length=4)
-    page_count: int = Field(..., gt=0, le=50, description="Number of pages for this section.")
-    include_answer_key: bool = Field(False, description="Whether to include an answer key for this section.")
-    problems_per_page: int = Field(10, gt=0, le=50, description="Number of problems per page for this section.")
-    modifiers: ModifierSettings = Field(default_factory=ModifierSettings)
-    mixed_problems_data: Optional[list[GeneratedProblem]] = Field(None, max_length=2500)
-
-    @field_validator("topic")
-    @classmethod
-    def validate_topics(cls, topics):
-        valid_topics = {"addition", "subtraction", "multiplication", "division"}
-        if topics == ["mixed"]:
-            return topics
-        if "mixed" in topics or any(topic not in valid_topics for topic in topics):
-            raise ValueError("Topics must be supported arithmetic operations.")
-        return topics
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
@@ -578,115 +540,28 @@ async def favorite_template(
     return await _handle_template_action(template_id, current_user, db, user_favorites_template, "favorite")
 
 
-@app.post("/get-problems", response_model=List[dict])
-async def get_problems_endpoint(request_data: SectionRequest):
-    """
-    Generates and returns a list of raw problem dictionaries based on the request, without creating a PDF.
-    """
-    subject = request_data.subject
-    topic_ids = request_data.topic
-    if topic_ids == ["mixed"]:
-        raise HTTPException(status_code=422, detail="Mixed topics are only valid for worksheet generation.")
-    total_problems = request_data.page_count * request_data.problems_per_page
-    modifiers = request_data.modifiers.model_dump()
-
-    problems_objects = []
-    try:
-        if subject == 'Arithmetic':
-            problems_objects = await run_in_threadpool(
-                generate_arithmetic_problems,
-                topic_ids,
-                total_problems,
-                modifiers
-            )
-        else:
-            raise HTTPException(status_code=400, detail=f"Subject '{subject}' not supported for problem generation.")
-
-        problems_data = [p.to_dict() for p in problems_objects]
-        return JSONResponse(content=problems_data)
-
-    except HTTPException as e:
-        raise e
-    except Exception:
-        logger.exception("Raw problem generation failed")
-        raise HTTPException(status_code=500, detail="Failed to generate problems.")
-
 @app.post("/generate-worksheet")
-async def generate_worksheet_endpoint(requests_list: list[SectionRequest]):
-    if not requests_list:
-        raise HTTPException(status_code=422, detail="At least one worksheet section is required.")
-
-    if len(requests_list) > 20:
-        raise HTTPException(status_code=422, detail="A worksheet can contain at most 20 sections.")
-
-    input_problem_count = sum(
-        len(request.mixed_problems_data)
-        if request.mixed_problems_data is not None
-        else request.page_count * request.problems_per_page
-        for request in requests_list
-    )
-    if input_problem_count > 10_000:
-        raise HTTPException(status_code=422, detail="A worksheet can contain at most 10,000 problems.")
-
+async def generate_worksheet_endpoint(request: WorksheetRequest):
+    rng = random.Random(request.seed)
     all_problems_data_for_pdf = []
-    overall_include_answer_key = False
+    for section_index, section in enumerate(request.sections):
+        pages = await run_in_threadpool(generate_section_problems, section, rng)
 
-    for request_data in requests_list:
-        modifiers = request_data.modifiers.model_dump()
-
-        # PATH A: Mixed Problems
-        if request_data.topic == ["mixed"]:
-            if not request_data.mixed_problems_data:
-                raise HTTPException(status_code=422, detail="Mixed worksheets require generated problem data.")
-
-            all_problems_data_for_pdf.append({
-                "type": "section_header",
-                "subject": request_data.subject,
-                "topic_name": "Mixed Problems",
-                "page_count": request_data.page_count,
-                "problems_per_page": request_data.problems_per_page,
-                "modifiers": modifiers
-            })
-            all_problems_data_for_pdf.extend(
-                problem.model_dump() for problem in request_data.mixed_problems_data
-            )
-
-        # PATH B: Fresh Generation
-        else:
-            if request_data.mixed_problems_data is not None:
-                raise HTTPException(status_code=422, detail="Mixed problem data requires the mixed topic.")
-
-            total_problems = request_data.page_count * request_data.problems_per_page
-            
-            # Pass our sanitized 'modifiers' dict to your operations logic
-            problems_objects = await run_in_threadpool(
-                generate_arithmetic_problems,
-                request_data.topic, 
-                total_problems, 
-                modifiers
-            )
-            
-            section_problems_data = [p.to_dict() for p in problems_objects]
-
-            all_problems_data_for_pdf.append({
-                "type": "section_header",
-                "subject": request_data.subject,
-                "topic_name": ", ".join(t.capitalize() for t in request_data.topic),
-                "page_count": request_data.page_count,
-                "problems_per_page": request_data.problems_per_page,
-                "modifiers": modifiers
-            })
-            all_problems_data_for_pdf.extend(section_problems_data)
-
-        if request_data.include_answer_key:
-            overall_include_answer_key = True
+        all_problems_data_for_pdf.append({
+            "section_number": section_index + 1,
+            "mode": section.mode,
+            "topics": [topic.model_dump() for topic in section.topics],
+            "page_count": section.page_count,
+            "problems_per_page": section.problems_per_page,
+            "pages": [[problem.to_dict() for problem in page] for page in pages],
+        })
 
     try:
         # Generate the PDF
         pdf_buffer = await run_in_threadpool(
             create_pdf_worksheet,
             all_problems_data_for_pdf,
-            overall_include_answer_key,
+            request.answer_key_mode,
         )
         pdf_buffer.seek(0)
 
