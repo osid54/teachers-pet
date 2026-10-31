@@ -5,14 +5,14 @@ import { Input, Checkbox, Button } from '@/components/ui';
 import { PREDEFINED_TAGS } from '@/lib/constants';
 
 export default function SaveTemplateForm({
-    currentSelectedTopics,
-    currentUniformSettings,
+    sections,
+    workflowMode,
+    answerKeyMode,
     onSubmit,
     onClose,
     initialTemplateData,
     isSaving = false,
     saveError = null,
-    mode,
 }) {
     const [name, setName] = useState(initialTemplateData?.name || '');
     const [description, setDescription] = useState(initialTemplateData?.description || '');
@@ -28,16 +28,16 @@ export default function SaveTemplateForm({
             setError('Template name cannot be blank.');
             return;
         }
-        if (currentSelectedTopics.length === 0) {
-            const msg = "Please select at least one topic to save a template.";
+        if (!sections.length || sections.some(section => section.topics.length === 0)) {
+            const msg = "Add at least one topic to every section before saving.";
             setError(msg);
             return;
         }
 
         const templateSettings = {
-            selectedTopicInstances: currentSelectedTopics,
-            uniformSettings: currentUniformSettings,
-            topicSelectionMode: mode,
+            sections,
+            workflowMode,
+            answerKeyMode,
         };
 
         const templateToSave = {
@@ -74,7 +74,7 @@ export default function SaveTemplateForm({
                 {(error || saveError) && <p className="text-main-400 text-sm mb-md">{error || saveError}</p>}
 
                 <div className="flex gap-md justify-center mt-lg">
-                    <Button type="submit" isLoading={isSaving} disabled={isSaving || currentSelectedTopics.length === 0} variant="primary">
+                    <Button type="submit" isLoading={isSaving} disabled={isSaving || !sections.length || sections.some(section => section.topics.length === 0)} variant="primary">
                         {initialTemplateData ? 'Update Template' : 'Save Template'}
                     </Button>
                     <Button onClick={onClose} variant="secondary" disabled={isSaving}>Cancel</Button>

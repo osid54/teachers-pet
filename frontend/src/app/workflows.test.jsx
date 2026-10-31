@@ -6,7 +6,7 @@ import TemplatesPage from './templates/page';
 
 const mocks = vi.hoisted(() => ({
     api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
-    generate: vi.fn(), problems: vi.fn(), logout: vi.fn(),
+    generate: vi.fn(), logout: vi.fn(),
 }));
 
 vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({
@@ -14,14 +14,16 @@ vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({
 }) }));
 vi.mock('@/hooks/useBackendStatus', () => ({ useBackendStatus: () => ({}) }));
 vi.mock('@/services/worksheetApi', () => ({
-    generateWorksheetPDF: mocks.generate, fetchProblemsList: mocks.problems,
+    generateWorksheetPDF: mocks.generate,
 }));
 
 const topics = [{ id: 'one', subject: 'Arithmetic', topicId: 'addition', topicName: 'Addition',
-    modifiers: { problem: { digits: 2, dec: 0, neg: 0, frac: false }, answer: { round: 0 } } }];
-const uniform = { pageCount: 1, problemsPerPage: 10, mixedProblems: false, includeAnswerKey: true };
+    modifiers: { digits: 2, digit_mode: 'up_to', decimal_places: 0, negative_probability: 0,
+        allow_negative_answers: false, division_mode: 'exact', answer_rounding: null } }];
+const uniform = { pageCount: 1, problemsPerPage: 10 };
 const template = { id: 7, user_id: 1, name: 'Practice', tags: ['Arithmetic'], likes_count: 0,
-    settings_json: { selectedTopicInstances: topics, uniformSettings: uniform, topicSelectionMode: 'multi' } };
+    settings_json: { sections: [{ id: 'section-1', mode: 'single', topics, ...uniform }],
+        workflowMode: 'single', answerKeyMode: 'separate' } };
 
 beforeEach(() => {
     vi.clearAllMocks();
@@ -31,9 +33,6 @@ beforeEach(() => {
     mocks.api.put.mockResolvedValue({ data: template });
     mocks.api.delete.mockResolvedValue({});
     mocks.generate.mockResolvedValue(new Blob(['test PDF'], { type: 'application/pdf' }));
-    mocks.problems.mockImplementation(async request => Array.from({ length: request.problems_per_page }, () => ({
-        question: '1 + 1 =', answer: 2, num1: 1, num2: 1, symbol: '+',
-    })));
     vi.stubGlobal('confirm', vi.fn(() => true));
     vi.spyOn(window, 'open').mockReturnValue(null);
     URL.createObjectURL = vi.fn(() => 'blob:test-pdf');
@@ -53,11 +52,11 @@ describe('worksheet workflow integration', () => {
 
     it('duplicates a topic with its modifiers, normalizes page count, and saves the real state', async () => {
         render(<MemoryRouter><HomePage /></MemoryRouter>);
-        fireEvent.click(await screen.findByRole('button', { name: 'Multi Topic', exact: true }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Mixed Topic', exact: true }));
         fireEvent.click(screen.getByRole('button', { name: /Addition Basic/ }));
-        fireEvent.change(screen.getByLabelText('Digits'), { target: { value: '4' } });
+        fireEvent.change(screen.getByLabelText('Integer-part digits'), { target: { value: '4' } });
         fireEvent.click(screen.getByRole('button', { name: 'Duplicate Addition' }));
-        const pages = screen.getByLabelText('Pages Per Subject');
+        const pages = screen.getByLabelText('Pages in this section');
         fireEvent.change(pages, { target: { value: '99' } });
         fireEvent.blur(pages);
         fireEvent.click(screen.getByRole('button', { name: 'Save template' }));
@@ -65,12 +64,15 @@ describe('worksheet workflow integration', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Save Template', exact: true }));
         await waitFor(() => expect(mocks.api.post).toHaveBeenCalled());
         const payload = mocks.api.post.mock.calls[0][1].settings_json;
-        expect(payload.uniformSettings.pageCount).toBe(50);
-        expect(payload.topicSelectionMode).toBe('multi');
-        expect(payload.selectedTopicInstances).toHaveLength(2);
-        expect(payload.selectedTopicInstances.map(topic => topic.topicId)).toEqual(['addition', 'addition']);
-        expect(payload.selectedTopicInstances.map(topic => topic.modifiers.problem.digits)).toEqual([4, 4]);
-        expect(payload.selectedTopicInstances[0].id).not.toBe(payload.selectedTopicInstances[1].id);
+        expect(payload.workflowMode).toBe('mixed');
+        expect(payload.answerKeyMode).toBe('separate');
+        expect(payload.sections).toHaveLength(1);
+        expect(payload.sections[0].mode).toBe('mixed');
+        expect(payload.sections[0].pageCount).toBe(50);
+        expect(payload.sections[0].topics).toHaveLength(2);
+        expect(payload.sections[0].topics.map(topic => topic.topicId)).toEqual(['addition', 'addition']);
+        expect(payload.sections[0].topics.map(topic => topic.modifiers.digits)).toEqual([4, 4]);
+        expect(payload.sections[0].topics[0].id).not.toBe(payload.sections[0].topics[1].id);
         await waitFor(() => expect(screen.queryByLabelText('Template Name')).toBeNull());
     });
 
@@ -84,27 +86,29 @@ describe('worksheet workflow integration', () => {
         expect(mocks.api.post).not.toHaveBeenCalled();
     });
 
-    it('batches mixed problem preparation and offers a download even when popups are blocked', async () => {
-        localStorage.setItem('tempLoadTemplate', JSON.stringify({ selectedTopicInstances: topics,
-            uniformSettings: { ...uniform, pageCount: 2, problemsPerPage: 50, mixedProblems: true } }));
+    it('sends mixed generation to the backend and offers a download when popups are blocked', async () => {
+        localStorage.setItem('tempLoadTemplate', JSON.stringify({ workflowMode: 'mixed', answerKeyMode: 'inline',
+            sections: [{ id: 'section-1', mode: 'mixed', topics: [topics[0], { ...topics[0], id: 'two', topicId: 'subtraction' }],
+                pageCount: 2, problemsPerPage: 50 }] }));
         const { unmount } = render(<MemoryRouter><HomePage /></MemoryRouter>);
         fireEvent.click(await screen.findByRole('button', { name: 'Generate Worksheet' }));
         const download = await screen.findByRole('link', { name: 'Download Worksheet' });
         expect(download.getAttribute('href')).toBe('blob:test-pdf');
-        expect(mocks.problems).toHaveBeenCalledTimes(2);
-        expect(mocks.problems.mock.calls.every(([request]) => request.problems_per_page <= 50)).toBe(true);
-        expect(mocks.generate.mock.calls[0][0][0].mixed_problems_data).toHaveLength(100);
+        expect(mocks.generate.mock.calls[0][0]).toMatchObject({ answer_key_mode: 'inline', sections: [{
+            mode: 'mixed', page_count: 2, problems_per_page: 50,
+            topics: [{ topic_id: 'addition' }, { topic_id: 'subtraction' }],
+        }] });
         unmount();
         expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test-pdf');
     });
 
-    it('shows mixed preparation errors and restores the generate button', async () => {
-        mocks.problems.mockRejectedValue(new Error('Network failed'));
-        localStorage.setItem('tempLoadTemplate', JSON.stringify({ selectedTopicInstances: topics,
-            uniformSettings: { ...uniform, mixedProblems: true } }));
+    it('shows generation errors and restores the generate button', async () => {
+        mocks.generate.mockRejectedValue(new Error('Network failed'));
+        localStorage.setItem('tempLoadTemplate', JSON.stringify({ workflowMode: 'single', answerKeyMode: 'none',
+            sections: [{ id: 'section-1', mode: 'single', topics, pageCount: 1, problemsPerPage: 10 }] }));
         render(<MemoryRouter><HomePage /></MemoryRouter>);
         fireEvent.click(await screen.findByRole('button', { name: 'Generate Worksheet' }));
-        expect((await screen.findByRole('alert')).textContent).toContain('Failed to get problems for Addition');
+        expect((await screen.findByRole('alert')).textContent).toContain('Network failed');
         expect(screen.getByRole('button', { name: 'Generate Worksheet' }).disabled).toBe(false);
     });
 });

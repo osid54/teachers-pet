@@ -11,7 +11,8 @@ export default function WorksheetGenerationSidebar({
     mode, selectedTopicInstances, onUniformSettingChange, onTopicInstanceModifierChange,
     onAddTopicInstance, onRemoveTopicInstance, onGenerate, isGenerating,
     uniformSettings, onSaveTemplate, isSavingTemplate, saveTemplateError, generateError, pdfUrl,
-    currentEditingTemplate, shouldOpenSaveFormOnInit, onSaveFormOpened
+    currentEditingTemplate, shouldOpenSaveFormOnInit, onSaveFormOpened,
+    sections, workflowMode, answerKeyMode, onAnswerKeyModeChange,
 }) {
     const [showSaveForm, setShowSaveForm] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
@@ -31,8 +32,9 @@ export default function WorksheetGenerationSidebar({
 
     if (!isMounted) return null;
 
-    const isGenerateButtonDisabled = selectedTopicInstances.length === 0 || isGenerating;
-    const isSaveButtonDisabled = selectedTopicInstances.length === 0;
+    const isGenerateButtonDisabled = selectedTopicInstances.length === 0 ||
+        (mode === 'mixed' && selectedTopicInstances.length < 2) || isGenerating;
+    const isSaveButtonDisabled = sections.some(section => section.topics.length === 0);
 
     return (
         <aside className="fixed left-0 right-0 bottom-0 h-[30%] w-full z-900 bg-main-100 shadow-[-4px_0_10px_rgba(0,0,0,0.1)] p-md overflow-y-auto 
@@ -42,11 +44,11 @@ export default function WorksheetGenerationSidebar({
                 (!currentEditingTemplate || (currentEditingTemplate && currentEditingTemplate.id)) ? (
                     <SaveTemplateForm
                         key={currentEditingTemplate?.id || 'new'}
-                        currentSelectedTopics={selectedTopicInstances}
-                        currentUniformSettings={uniformSettings}
+                        sections={sections}
+                        workflowMode={workflowMode}
+                        answerKeyMode={answerKeyMode}
                         onClose={() => setShowSaveForm(false)}
                         onSubmit={handleSaveFormSubmit}
-                        mode={mode}
                         isSaving={isSavingTemplate}
                         saveError={saveTemplateError}
                         initialTemplateData={currentEditingTemplate}
@@ -68,14 +70,25 @@ export default function WorksheetGenerationSidebar({
                 <UniformSettingsForm settings={uniformSettings} onChange={(e) => {
                     const { name, value, type, checked } = e.target;
                     onUniformSettingChange({ ...uniformSettings, [name]: type === 'checkbox' ? checked : Number(value) });
-                }} mode={mode} />
+                }} />
+                <fieldset className="p-sm">
+                    <legend className="text-main-500 font-semibold">Answer key</legend>
+                    <div className="flex flex-wrap gap-xs" role="group" aria-label="Answer key format">
+                        {[['none', 'No key'], ['separate', 'Separate pages'], ['inline', 'Inline answers']].map(([value, label]) => (
+                            <Button key={value} type="button" variant={answerKeyMode === value ? 'primary' : 'secondary'}
+                                aria-pressed={answerKeyMode === value} onClick={() => onAnswerKeyModeChange(value)}>
+                                {label}
+                            </Button>
+                        ))}
+                    </div>
+                </fieldset>
             </section>
 
             <section className="mb-sm py-md shadow-md">
-                <h3 className="text-main-500 font-semibold text-center text-lg mb-sm">Selected Topic{mode === "multi" ? "s" : ""} ({mode} mode)</h3>
+                <h3 className="text-main-500 font-semibold text-center text-lg mb-sm">{mode === 'mixed' ? 'Mixed topic set' : 'Single-topic section'} ({selectedTopicInstances.length})</h3>
                 {selectedTopicInstances.length === 0 ? (
                     <p className="text-main-500 text-center border border-dashed border-main-500 rounded-md text-sm py-md px-lg mx-md">
-                        Select {mode === "multi" ? "topics" : "a topic"} from the grid to add {mode === "multi" ? "them" : "it"} here.
+                        Select {mode === 'mixed' ? 'at least two topics' : 'a topic'} from the grid.
                     </p>
                 ) : (
                     <SelectedTopicsList
@@ -90,8 +103,8 @@ export default function WorksheetGenerationSidebar({
 
             <div className="flex gap-4 p-sm text-center
                             min-[769px]:gap-[5%] min-[769px]:absolute min-[769px]:bottom-0 min-[769px]:left-0 min-[769px]:right-0 min-[769px]:p-lg min-[769px]:mb-lg min-[769px]:bg-main-100 ">
-                <Button
-                    onClick={() => onGenerate(uniformSettings)}
+                    <Button
+                        onClick={() => onGenerate()}
                     disabled={isGenerateButtonDisabled}
                     isLoading={isGenerating}
                     className="grow text-sm min-[769px]:text-lg min-[769px]:w-[75%]"

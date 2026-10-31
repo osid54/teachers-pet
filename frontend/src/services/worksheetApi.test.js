@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Blob as NodeBlob } from 'node:buffer';
-import { fetchProblemsList, generateWorksheetPDF } from './worksheetApi';
+import { generateWorksheetPDF } from './worksheetApi';
 
 const mocks = vi.hoisted(() => ({ post: vi.fn() }));
 vi.mock('axios', () => ({ default: { create: () => ({ post: mocks.post }) } }));
@@ -10,11 +10,6 @@ beforeEach(() => {
 });
 
 describe('worksheet API failures', () => {
-    it('keeps FastAPI validation messages readable', async () => {
-        mocks.post.mockRejectedValue({ response: { data: { detail: [{ msg: 'Digits must be positive' }] } } });
-        await expect(fetchProblemsList({})).rejects.toThrow('Digits must be positive');
-    });
-
     it('extracts PDF blob errors without swallowing the message', async () => {
         vi.stubGlobal('Blob', NodeBlob);
         try {

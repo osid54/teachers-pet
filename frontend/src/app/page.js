@@ -6,7 +6,6 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 import { useGenerateWorksheet } from '@/hooks/useGenerateWorksheet';
-import { buildMixedWorksheet } from '@/lib/mixedWorksheet';
 import { supportedCurriculumData } from '@/lib/curriculum';
 import { normalizeWorksheetSettings } from '@/lib/worksheetSettings';
 import { useAuth } from '@/context/AuthContext';
@@ -17,20 +16,25 @@ import HowToUse from '@/components/layout/HowToUse';
 import { Button } from '@/components/ui';
 import Sidebar from '@/components/worksheet/Sidebar';
 
+const createSection = (mode = 'single') => ({
+  id: uuidv4(), mode, topics: [], pageCount: 1, problemsPerPage: 10,
+});
+
 function PageContent() {
   const { generate, loading: generateLoading, error: generateError, pdfUrl } = useGenerateWorksheet();
   const { authApi, isLoggedIn, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  const [topicSelectionMode, setTopicSelectionMode] = useState('single');
-  const [selectedTopicInstances, setSelectedTopicInstances] = useState([]);
-
-  const [uniformSettings, setUniformSettings] = useState({
-    pageCount: 1,
-    problemsPerPage: 10,
-    includeAnswerKey: true,
-    mixedProblems: false,
-  });
+  const [workflowMode, setWorkflowMode] = useState('single');
+  const [sections, setSections] = useState(() => [createSection('single')]);
+  const [activeSectionId, setActiveSectionId] = useState(null);
+  const [answerKeyMode, setAnswerKeyMode] = useState('separate');
+  const activeSection = sections.find(section => section.id === activeSectionId) || sections[0];
+  const selectedTopicInstances = activeSection?.topics || [];
+  const uniformSettings = activeSection ? {
+    pageCount: activeSection.pageCount,
+    problemsPerPage: activeSection.problemsPerPage,
+  } : { pageCount: 1, problemsPerPage: 10 };
 
   const [searchParams] = useSearchParams();
   const templateIdFromUrl = searchParams.get('templateId');
@@ -43,8 +47,34 @@ function PageContent() {
 
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
+    if (!activeSectionId && sections[0]) setActiveSectionId(sections[0].id);
     setIsMounted(true);
-  }, []);
+  }, [activeSectionId, sections]);
+
+  const updateSection = (sectionId, update) => {
+    setSections(current => current.map(section => section.id === sectionId ? update(section) : section));
+  };
+
+  const chooseWorkflow = (nextMode) => {
+    setWorkflowMode(nextMode);
+    if (nextMode === 'multi-section') {
+      if (!sections.length) {
+        const section = createSection('single');
+        setSections([section]);
+        setActiveSectionId(section.id);
+      }
+      return;
+    }
+    const section = createSection(nextMode);
+    setSections([section]);
+    setActiveSectionId(section.id);
+  };
+
+  const addSection = (mode) => {
+    const section = createSection(mode);
+    setSections(current => [...current, section]);
+    setActiveSectionId(section.id);
+  };
 
   const handleSaveTemplate = async (templateData) => {
     if (!isLoggedIn) {
@@ -100,9 +130,10 @@ function PageContent() {
         const settings = normalizeWorksheetSettings(settingsToLoad);
         if (cancelled) return;
         setLoadTemplateError(null);
-        setUniformSettings(settings.uniformSettings);
-        setTopicSelectionMode(settings.topicSelectionMode);
-        setSelectedTopicInstances(settings.selectedTopicInstances);
+        setSections(settings.sections);
+        setActiveSectionId(settings.sections[0].id);
+        setWorkflowMode(settings.workflowMode);
+        setAnswerKeyMode(settings.answerKeyMode);
         setCurrentEditingTemplate(editingTemplate);
         if (editingTemplate) {
           setShouldOpenSaveFormAfterLoad(true);
@@ -119,15 +150,13 @@ function PageContent() {
 
   const addTopicInstance = (topicWithSubject) => {
     const defaultModifiers = {
-      problem: {
-        digits: 2,
-        dec: 0,
-        neg: 0,
-        frac: false,
-      },
-      answer: {
-        round: 0,
-      },
+      digits: 2,
+      digit_mode: 'up_to',
+      decimal_places: 0,
+      negative_probability: 0,
+      allow_negative_answers: false,
+      division_mode: 'exact',
+      answer_rounding: null,
     };
 
     const newInstance = {
@@ -138,27 +167,24 @@ function PageContent() {
       modifiers: structuredClone(topicWithSubject.modifiers || defaultModifiers),
     };
 
-    setSelectedTopicInstances((prevInstances) => {
-      if (topicSelectionMode === 'single') {
-        return [newInstance];
-      }
-      return [...prevInstances, newInstance];
-    });
+    updateSection(activeSection.id, section => ({
+      ...section,
+      topics: section.mode === 'single' ? [newInstance] : [...section.topics, newInstance],
+    }));
   };
 
   const removeTopicInstance = (instanceIdToRemove) => {
-    setSelectedTopicInstances((prevInstances) => {
-      const updatedInstances = prevInstances.filter((inst) => inst.id !== instanceIdToRemove);
-      return updatedInstances;
-    });
+    updateSection(activeSection.id, section => ({
+      ...section, topics: section.topics.filter(instance => instance.id !== instanceIdToRemove),
+    }));
   };
 
   const updateTopicInstanceModifiers = (instanceIdToUpdate, newModifiers) => {
-    setSelectedTopicInstances((prevInstances) =>
-      prevInstances.map((inst) =>
-        inst.id === instanceIdToUpdate ? { ...inst, modifiers: newModifiers } : inst
-      )
-    );
+    updateSection(activeSection.id, section => ({
+      ...section,
+      topics: section.topics.map(instance => instance.id === instanceIdToUpdate
+        ? { ...instance, modifiers: newModifiers } : instance),
+    }));
   };
 
   const handleTopicCardClick = (topic) => {
@@ -179,25 +205,22 @@ function PageContent() {
     });
   };
 
-  const handleGenerateButtonClick = async (uniformSettingsFromSidebar) => {
-    if (selectedTopicInstances.length === 0) {
+  const handleGenerateButtonClick = async () => {
+    if (sections.some(section => section.topics.length === 0)) {
       toast.error("Please select at least one topic to generate.");
       return;
     }
     return generate(async () => {
-      const settings = normalizeWorksheetSettings({ selectedTopicInstances,
-        uniformSettings: uniformSettingsFromSidebar, topicSelectionMode });
-      if (settings.uniformSettings.mixedProblems) {
-        return buildMixedWorksheet(settings.selectedTopicInstances, settings.uniformSettings);
-      }
-      return settings.selectedTopicInstances.map(instance => ({
-        subject: instance.subject,
-        topic: [instance.topicId],
-        page_count: settings.uniformSettings.pageCount,
-        include_answer_key: settings.uniformSettings.includeAnswerKey,
-        problems_per_page: settings.uniformSettings.problemsPerPage,
-        modifiers: instance.modifiers,
-      }));
+      const request = normalizeWorksheetSettings({ sections, workflowMode, answerKeyMode });
+      return {
+        answer_key_mode: request.answerKeyMode,
+        sections: request.sections.map(section => ({
+          mode: section.mode,
+          page_count: section.pageCount,
+          problems_per_page: section.problemsPerPage,
+          topics: section.topics.map(topic => ({ topic_id: topic.topicId, modifiers: topic.modifiers })),
+        })),
+      };
     });
   };
 
@@ -212,26 +235,43 @@ function PageContent() {
         <HowToUse />
         {loadTemplateError && <p role="alert">{loadTemplateError}</p>}
 
-        <div className="flex justify-center gap-md ">
+        <div className="flex flex-wrap justify-center gap-md">
           <Button
-            onClick={() => {
-              setTopicSelectionMode('single');
-              setSelectedTopicInstances([]);
-              setUniformSettings(settings => ({ ...settings, mixedProblems: false }));
-            }}
-            variant={topicSelectionMode === 'single' ? 'primary' : 'secondary'}
+            onClick={() => chooseWorkflow('single')}
+            variant={workflowMode === 'single' ? 'primary' : 'secondary'}
             className="min-[769px]:min-w-[150px]"
           >
             Single Topic
           </Button>
           <Button
-            onClick={() => setTopicSelectionMode('multi')}
-            variant={topicSelectionMode === 'multi' ? 'primary' : 'secondary'}
+            onClick={() => chooseWorkflow('mixed')}
+            variant={workflowMode === 'mixed' ? 'primary' : 'secondary'}
             className="min-[769px]:min-w-[150px]"
           >
-            Multi Topic
+            Mixed Topic
+          </Button>
+          <Button
+            onClick={() => chooseWorkflow('multi-section')}
+            variant={workflowMode === 'multi-section' ? 'primary' : 'secondary'}
+          >
+            Multi-Section
           </Button>
         </div>
+
+        {workflowMode === 'multi-section' && <div className="flex flex-wrap justify-center gap-sm my-md">
+          {sections.map((section, index) => <Button key={section.id}
+            onClick={() => setActiveSectionId(section.id)}
+            variant={section.id === activeSection.id ? 'primary' : 'secondary'}>
+            {index + 1}. {section.mode === 'mixed' ? 'Mixed' : 'Single'} ({section.topics.length})
+          </Button>)}
+          <Button onClick={() => addSection('single')} variant="secondary">Add Single Section</Button>
+          <Button onClick={() => addSection('mixed')} variant="secondary">Add Mixed Section</Button>
+          {sections.length > 1 && <Button variant="danger" onClick={() => {
+            const remaining = sections.filter(section => section.id !== activeSection.id);
+            setSections(remaining);
+            setActiveSectionId(remaining[0].id);
+          }}>Remove Active Section</Button>}
+        </div>}
 
         <div className="flex flex-col gap-lg">
           {supportedCurriculumData.map(subjectData => (
@@ -260,9 +300,9 @@ function PageContent() {
 
       {isMounted && (
         <Sidebar
-          mode={topicSelectionMode}
+          mode={activeSection.mode}
           selectedTopicInstances={selectedTopicInstances}
-          onUniformSettingChange={setUniformSettings}
+          onUniformSettingChange={changes => updateSection(activeSection.id, section => ({ ...section, ...changes }))}
           onTopicInstanceModifierChange={updateTopicInstanceModifiers}
           onAddTopicInstance={addTopicInstance}
           onRemoveTopicInstance={removeTopicInstance}
@@ -275,6 +315,10 @@ function PageContent() {
           isSavingTemplate={isSavingTemplate}
           saveTemplateError={saveTemplateError}
           currentEditingTemplate={currentEditingTemplate}
+          sections={sections}
+          workflowMode={workflowMode}
+          answerKeyMode={answerKeyMode}
+          onAnswerKeyModeChange={setAnswerKeyMode}
           shouldOpenSaveFormOnInit={shouldOpenSaveFormAfterLoad}
           onSaveFormOpened={() => setShouldOpenSaveFormAfterLoad(false)}
         />
