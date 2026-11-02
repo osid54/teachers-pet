@@ -29,7 +29,7 @@ from database import get_db
 from models import User, Template, user_likes_template, user_favorites_template
 from problem_generator.worksheet import generate_section_problems
 from pdf_generator.main import create_pdf_worksheet
-from schemas import WorksheetRequest
+from schemas import WorksheetHeader, WorksheetRequest
 
 app = FastAPI(
     title="Teacher's Pet API",
@@ -545,11 +545,16 @@ async def favorite_template(
 async def generate_worksheet_endpoint(request: WorksheetRequest):
     rng = random.Random(request.seed)
     all_problems_data_for_pdf = []
-    for section_index, section in enumerate(request.sections):
+    section_number = 0
+    for section in request.sections:
+        if isinstance(section, WorksheetHeader):
+            all_problems_data_for_pdf.append({"mode": "header", "title": section.title})
+            continue
+        section_number += 1
         pages = await run_in_threadpool(generate_section_problems, section, rng)
 
         all_problems_data_for_pdf.append({
-            "section_number": section_index + 1,
+            "section_number": section_number,
             "mode": section.mode,
             "topics": [topic.model_dump() for topic in section.topics],
             "page_count": section.page_count,

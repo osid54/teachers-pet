@@ -50,21 +50,20 @@ const topics = [{ id: 'one', subject: 'Arithmetic', topicId: 'addition', topicNa
     modifiers: { digits: 2, digit_mode: 'up_to', decimal_places: 0, negative_probability: 0,
         allow_negative_answers: false, division_mode: 'exact', answer_rounding: null } }];
 const section = { id: 'section-1', mode: 'single', topics, pageCount: 1, problemsPerPage: 10 };
-const settings = { pageCount: 1, problemsPerPage: 10 };
 
 describe('template saving', () => {
     it('includes sections, workflow, and answer-key mode in the saved payload', () => {
         const onSubmit = vi.fn();
-        render(<SaveTemplateForm sections={[section]} workflowMode="single" answerKeyMode="separate" onSubmit={onSubmit} />);
+        render(<SaveTemplateForm sections={[section]} workflowMode="accordion" answerKeyMode="separate" onSubmit={onSubmit} />);
         fireEvent.change(screen.getByLabelText('Template Name'), { target: { value: 'Practice' } });
         fireEvent.click(screen.getByRole('button', { name: 'Save Template' }));
         expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ name: 'Practice',
-            settings_json: { sections: [section], workflowMode: 'single', answerKeyMode: 'separate' } }));
+            settings_json: { sections: [section], workflowMode: 'accordion', answerKeyMode: 'separate' } }));
     });
 
     it('opens the sidebar form without undefined handlers and supports cancellation', () => {
-        render(<Sidebar mode="single" selectedTopicInstances={topics} uniformSettings={settings} sections={[section]}
-            workflowMode="single" answerKeyMode="none" onAnswerKeyModeChange={vi.fn()} onSaveTemplate={vi.fn()} />);
+        render(<Sidebar sections={[section]} openSectionId={section.id} answerKeyMode="none"
+            onAnswerKeyModeChange={vi.fn()} onSaveTemplate={vi.fn()} />);
         fireEvent.click(screen.getByRole('button', { name: 'Save template' }));
         expect(screen.getByLabelText('Template Name')).toBeTruthy();
         fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));

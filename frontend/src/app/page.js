@@ -7,34 +7,33 @@ import toast from 'react-hot-toast';
 
 import { useGenerateWorksheet } from '@/hooks/useGenerateWorksheet';
 import { supportedCurriculumData } from '@/lib/curriculum';
-import { normalizeWorksheetSettings } from '@/lib/worksheetSettings';
+import { buildWorksheetRequest, normalizeWorksheetSettings } from '@/lib/worksheetSettings';
+import { moveWorksheetTopic, reorderWorksheetEntries, removeWorksheetTopic } from '@/lib/worksheetStructure';
 import { useAuth } from '@/context/AuthContext';
 
 import SubjectHeader from '@/components/worksheet/SubjectHeader';
 import ProblemTypeCard from '@/components/worksheet/ProblemTypeCard';
 import HowToUse from '@/components/layout/HowToUse';
-import { Button } from '@/components/ui';
 import Sidebar from '@/components/worksheet/Sidebar';
+import TopicCustomizeModal from '@/components/worksheet/TopicCustomizeModal';
+import { DEFAULT_TOPIC_MODIFIERS } from '@/components/worksheet/TopicModifierFields';
 
 const createSection = (mode = 'single') => ({
   id: uuidv4(), mode, topics: [], pageCount: 1, problemsPerPage: 10,
+  shareModifiers: false, sharedModifiers: null,
 });
+const createHeader = () => ({ id: uuidv4(), mode: 'header', title: 'New header' });
 
 function PageContent() {
   const { generate, loading: generateLoading, error: generateError, pdfUrl } = useGenerateWorksheet();
   const { authApi, isLoggedIn, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  const [workflowMode, setWorkflowMode] = useState('single');
   const [sections, setSections] = useState(() => [createSection('single')]);
-  const [activeSectionId, setActiveSectionId] = useState(null);
+  const [openSectionId, setOpenSectionId] = useState(() => sections[0].id);
+  const [lastOpenedSectionId, setLastOpenedSectionId] = useState(() => sections[0].id);
+  const [topicDialog, setTopicDialog] = useState(null);
   const [answerKeyMode, setAnswerKeyMode] = useState('separate');
-  const activeSection = sections.find(section => section.id === activeSectionId) || sections[0];
-  const selectedTopicInstances = activeSection?.topics || [];
-  const uniformSettings = activeSection ? {
-    pageCount: activeSection.pageCount,
-    problemsPerPage: activeSection.problemsPerPage,
-  } : { pageCount: 1, problemsPerPage: 10 };
 
   const [searchParams] = useSearchParams();
   const templateIdFromUrl = searchParams.get('templateId');
@@ -47,33 +46,115 @@ function PageContent() {
 
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
-    if (!activeSectionId && sections[0]) setActiveSectionId(sections[0].id);
     setIsMounted(true);
-  }, [activeSectionId, sections]);
+  }, []);
 
-  const updateSection = (sectionId, update) => {
-    setSections(current => current.map(section => section.id === sectionId ? update(section) : section));
-  };
-
-  const chooseWorkflow = (nextMode) => {
-    setWorkflowMode(nextMode);
-    if (nextMode === 'multi-section') {
-      if (!sections.length) {
-        const section = createSection('single');
-        setSections([section]);
-        setActiveSectionId(section.id);
-      }
+  const toggleSection = (sectionId) => {
+    if (openSectionId === sectionId) {
+      setOpenSectionId(null);
       return;
     }
-    const section = createSection(nextMode);
-    setSections([section]);
-    setActiveSectionId(section.id);
+    setOpenSectionId(sectionId);
+    setLastOpenedSectionId(sectionId);
   };
 
   const addSection = (mode) => {
     const section = createSection(mode);
     setSections(current => [...current, section]);
-    setActiveSectionId(section.id);
+    setOpenSectionId(section.id);
+    setLastOpenedSectionId(section.id);
+  };
+
+  const addHeader = () => {
+    const header = createHeader();
+    const section = createSection('single');
+    setSections(current => [...current, header, section]);
+    setOpenSectionId(section.id);
+    setLastOpenedSectionId(section.id);
+  };
+
+  const removeEntry = (entryId) => {
+    const remaining = sections.filter(section => section.id !== entryId);
+    setSections(remaining);
+    if (openSectionId === entryId) setOpenSectionId(null);
+    if (lastOpenedSectionId === entryId) {
+      setLastOpenedSectionId(remaining.find(section => section.mode !== 'header')?.id || null);
+    }
+  };
+
+  const updateSection = (sectionId, changes) => {
+    setSections(current => current.map(section => section.id === sectionId ? { ...section, ...changes } : section));
+  };
+
+  const toggleSharedModifiers = (sectionId, enabled) => {
+    setSections(current => current.map(section => {
+      if (section.id !== sectionId) return section;
+      if (enabled) {
+        return { ...section, shareModifiers: true,
+          sharedModifiers: section.sharedModifiers || section.topics[0]?.modifiers || { ...DEFAULT_TOPIC_MODIFIERS } };
+      }
+      const topics = section.topics.map(topic => ({ ...topic,
+        modifiers: section.sharedModifiers || topic.modifiers }));
+      return { ...section, topics, shareModifiers: false, sharedModifiers: null };
+    }));
+  };
+
+  const updateSharedModifiers = (sectionId, modifiers) => {
+    updateSection(sectionId, { sharedModifiers: modifiers });
+  };
+
+  const updateTopicModifiers = (sectionId, topicId, modifiers) => {
+    setSections(current => current.map(section => {
+      if (section.id !== sectionId) return section;
+      if (section.shareModifiers) return { ...section, sharedModifiers: modifiers };
+      return { ...section, topics: section.topics.map(topic => topic.id === topicId
+        ? { ...topic, modifiers } : topic) };
+    }));
+  };
+
+  const removeTopic = (sectionId, topicId) => {
+    setSections(current => removeWorksheetTopic(current, sectionId, topicId));
+  };
+
+  const reorderEntries = (sourceId, targetId) => {
+    setSections(current => reorderWorksheetEntries(current, sourceId, targetId));
+  };
+
+  const moveTopic = (sourceSectionId, topicId, targetSectionId, targetTopicId = null) => {
+    setSections(current => moveWorksheetTopic(current, sourceSectionId, topicId, targetSectionId, targetTopicId));
+    if (sourceSectionId !== targetSectionId) {
+      setOpenSectionId(targetSectionId);
+      setLastOpenedSectionId(targetSectionId);
+    }
+  };
+
+  const makeTopicInstance = (topic, subject) => ({
+    id: uuidv4(), subject, topicId: topic.id, topicName: topic.name,
+    description: topic.description || '', modifiers: { ...DEFAULT_TOPIC_MODIFIERS },
+  });
+
+  const addTopicToSection = (instance, sectionId) => {
+    const target = sections.find(section => section.id === sectionId);
+    if (!target || target.mode === 'header') return;
+    const newInstance = target.shareModifiers
+      ? { ...instance, modifiers: target.sharedModifiers } : instance;
+    setSections(current => current.map(section => section.id === sectionId
+      ? { ...section, topics: [...section.topics, newInstance] } : section));
+    setOpenSectionId(sectionId);
+    setLastOpenedSectionId(sectionId);
+    setTopicDialog(null);
+  };
+
+  const handleTopicCardAction = (topic, customize) => {
+    const subject = supportedCurriculumData.find(item => item.topics.some(candidate => candidate.id === topic.id))?.subject;
+    if (!subject) return;
+    const topicParents = sections.filter(section => section.mode !== 'header');
+    const eligible = topicParents;
+    if (!customize && topicParents.length === 1 && eligible.length === 1) {
+      addTopicToSection(makeTopicInstance(topic, subject), eligible[0].id);
+      return;
+    }
+    setTopicDialog({ topic, subject, customize });
   };
 
   const handleSaveTemplate = async (templateData) => {
@@ -131,8 +212,9 @@ function PageContent() {
         if (cancelled) return;
         setLoadTemplateError(null);
         setSections(settings.sections);
-        setActiveSectionId(settings.sections[0].id);
-        setWorkflowMode(settings.workflowMode);
+        const firstParent = settings.sections.find(section => section.mode !== 'header');
+        setOpenSectionId(firstParent?.id || null);
+        setLastOpenedSectionId(firstParent?.id || null);
         setAnswerKeyMode(settings.answerKeyMode);
         setCurrentEditingTemplate(editingTemplate);
         if (editingTemplate) {
@@ -148,79 +230,15 @@ function PageContent() {
     return () => { cancelled = true; };
   }, [templateIdFromUrl, isLoggedIn, isMounted, authLoading, authApi, navigate]);
 
-  const addTopicInstance = (topicWithSubject) => {
-    const defaultModifiers = {
-      digits: 2,
-      digit_mode: 'up_to',
-      decimal_places: 0,
-      negative_probability: 0,
-      allow_negative_answers: false,
-      division_mode: 'exact',
-      answer_rounding: null,
-    };
-
-    const newInstance = {
-      id: uuidv4(),
-      subject: topicWithSubject.subject,
-      topicId: topicWithSubject.topicId || topicWithSubject.id,
-      topicName: topicWithSubject.topicName || topicWithSubject.name,
-      modifiers: structuredClone(topicWithSubject.modifiers || defaultModifiers),
-    };
-
-    updateSection(activeSection.id, section => ({
-      ...section,
-      topics: section.mode === 'single' ? [newInstance] : [...section.topics, newInstance],
-    }));
-  };
-
-  const removeTopicInstance = (instanceIdToRemove) => {
-    updateSection(activeSection.id, section => ({
-      ...section, topics: section.topics.filter(instance => instance.id !== instanceIdToRemove),
-    }));
-  };
-
-  const updateTopicInstanceModifiers = (instanceIdToUpdate, newModifiers) => {
-    updateSection(activeSection.id, section => ({
-      ...section,
-      topics: section.topics.map(instance => instance.id === instanceIdToUpdate
-        ? { ...instance, modifiers: newModifiers } : instance),
-    }));
-  };
-
-  const handleTopicCardClick = (topic) => {
-    const subjectOfClickedTopic = supportedCurriculumData.find(s =>
-      s.topics.some(t => t.id === topic.id)
-    )?.subject;
-
-    if (!subjectOfClickedTopic) {
-      console.error("Subject not found for topic:", topic);
-      return;
-    }
-
-    addTopicInstance({
-      id: topic.id,
-      name: topic.name,
-      description: topic.description,
-      subject: subjectOfClickedTopic
-    });
-  };
-
   const handleGenerateButtonClick = async () => {
-    if (sections.some(section => section.topics.length === 0)) {
-      toast.error("Please select at least one topic to generate.");
+    const topicSections = sections.filter(section => section.mode !== 'header');
+    if (!topicSections.length || topicSections.some(section => !section.topics.length ||
+        (section.mode === 'mixed' && section.topics.length < 2)) || sections.at(-1)?.mode === 'header') {
+      toast.error('Complete each topic section and place headers before a section.');
       return;
     }
     return generate(async () => {
-      const request = normalizeWorksheetSettings({ sections, workflowMode, answerKeyMode });
-      return {
-        answer_key_mode: request.answerKeyMode,
-        sections: request.sections.map(section => ({
-          mode: section.mode,
-          page_count: section.pageCount,
-          problems_per_page: section.problemsPerPage,
-          topics: section.topics.map(topic => ({ topic_id: topic.topicId, modifiers: topic.modifiers })),
-        })),
-      };
+      return buildWorksheetRequest({ sections, answerKeyMode });
     });
   };
 
@@ -235,44 +253,6 @@ function PageContent() {
         <HowToUse />
         {loadTemplateError && <p role="alert">{loadTemplateError}</p>}
 
-        <div className="flex flex-wrap justify-center gap-md">
-          <Button
-            onClick={() => chooseWorkflow('single')}
-            variant={workflowMode === 'single' ? 'primary' : 'secondary'}
-            className="min-[769px]:min-w-[150px]"
-          >
-            Single Topic
-          </Button>
-          <Button
-            onClick={() => chooseWorkflow('mixed')}
-            variant={workflowMode === 'mixed' ? 'primary' : 'secondary'}
-            className="min-[769px]:min-w-[150px]"
-          >
-            Mixed Topic
-          </Button>
-          <Button
-            onClick={() => chooseWorkflow('multi-section')}
-            variant={workflowMode === 'multi-section' ? 'primary' : 'secondary'}
-          >
-            Multi-Section
-          </Button>
-        </div>
-
-        {workflowMode === 'multi-section' && <div className="flex flex-wrap justify-center gap-sm my-md">
-          {sections.map((section, index) => <Button key={section.id}
-            onClick={() => setActiveSectionId(section.id)}
-            variant={section.id === activeSection.id ? 'primary' : 'secondary'}>
-            {index + 1}. {section.mode === 'mixed' ? 'Mixed' : 'Single'} ({section.topics.length})
-          </Button>)}
-          <Button onClick={() => addSection('single')} variant="secondary">Add Single Section</Button>
-          <Button onClick={() => addSection('mixed')} variant="secondary">Add Mixed Section</Button>
-          {sections.length > 1 && <Button variant="danger" onClick={() => {
-            const remaining = sections.filter(section => section.id !== activeSection.id);
-            setSections(remaining);
-            setActiveSectionId(remaining[0].id);
-          }}>Remove Active Section</Button>}
-        </div>}
-
         <div className="flex flex-col gap-lg">
           {supportedCurriculumData.map(subjectData => (
             <React.Fragment key={subjectData.subject}>
@@ -280,12 +260,14 @@ function PageContent() {
 
               <div className="grid min-[769px]:grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-md justify-items-center grid-cols-[repeat(auto-fit,minmax(120px,1fr))]">
                 {subjectData.topics.map(topic => {
-                  const isCardSelected = selectedTopicInstances.some(inst => inst.topicId === topic.id);
+                  const isCardSelected = sections.some(section => section.mode !== 'header' &&
+                    section.topics.some(instance => instance.topicId === topic.id));
                   return (
                     <ProblemTypeCard
                       key={topic.id}
                       topic={topic}
-                      onSelect={handleTopicCardClick}
+                      onQuickAdd={selectedTopic => handleTopicCardAction(selectedTopic, false)}
+                      onCustomize={selectedTopic => handleTopicCardAction(selectedTopic, true)}
                       isSelected={isCardSelected}
                     />
                   );
@@ -300,29 +282,40 @@ function PageContent() {
 
       {isMounted && (
         <Sidebar
-          mode={activeSection.mode}
-          selectedTopicInstances={selectedTopicInstances}
-          onUniformSettingChange={changes => updateSection(activeSection.id, section => ({ ...section, ...changes }))}
-          onTopicInstanceModifierChange={updateTopicInstanceModifiers}
-          onAddTopicInstance={addTopicInstance}
-          onRemoveTopicInstance={removeTopicInstance}
+          sections={sections}
+          openSectionId={openSectionId}
+          onToggleSection={toggleSection}
+          onAddSection={addSection}
+          onAddHeader={addHeader}
+          onRemoveEntry={removeEntry}
+          onRenameHeader={(headerId, title) => setSections(current => current.map(section =>
+            section.id === headerId ? { ...section, title } : section))}
+          onUpdateSection={updateSection}
+          onToggleSharedModifiers={toggleSharedModifiers}
+          onSharedModifierChange={updateSharedModifiers}
+          onTopicModifierChange={updateTopicModifiers}
+          onRemoveTopic={removeTopic}
+          onReorderEntries={reorderEntries}
+          onMoveTopic={moveTopic}
           onGenerate={handleGenerateButtonClick}
           isGenerating={generateLoading}
           generateError={generateError}
           pdfUrl={pdfUrl}
-          uniformSettings={uniformSettings}
           onSaveTemplate={handleSaveTemplate}
           isSavingTemplate={isSavingTemplate}
           saveTemplateError={saveTemplateError}
           currentEditingTemplate={currentEditingTemplate}
-          sections={sections}
-          workflowMode={workflowMode}
+          workflowMode="accordion"
           answerKeyMode={answerKeyMode}
           onAnswerKeyModeChange={setAnswerKeyMode}
           shouldOpenSaveFormOnInit={shouldOpenSaveFormAfterLoad}
           onSaveFormOpened={() => setShouldOpenSaveFormAfterLoad(false)}
         />
       )}
+      {topicDialog && <TopicCustomizeModal key={`${topicDialog.topic.id}-${topicDialog.customize}`}
+        topic={topicDialog.topic} subject={topicDialog.subject} sections={sections}
+        initialSectionId={openSectionId || lastOpenedSectionId} customize={topicDialog.customize}
+        onConfirm={addTopicToSection} onClose={() => setTopicDialog(null)} />}
     </div>
   );
 }

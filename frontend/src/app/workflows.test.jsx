@@ -46,16 +46,18 @@ describe('worksheet workflow integration', () => {
         render(<MemoryRouter><HomePage /></MemoryRouter>);
         expect((await screen.findByRole('alert')).textContent).toContain('not valid JSON');
         expect(screen.queryByRole('heading', { name: 'Algebra' })).toBeNull();
-        expect(screen.getByRole('button', { name: /Addition Basic/ })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Quick add Addition' })).toBeTruthy();
         expect(localStorage.getItem('tempLoadTemplate')).toBeNull();
     });
 
-    it('duplicates a topic with its modifiers, normalizes page count, and saves the real state', async () => {
+    it('adds topics to a mixed parent, edits inline settings, and saves the accordion state', async () => {
         render(<MemoryRouter><HomePage /></MemoryRouter>);
-        fireEvent.click(await screen.findByRole('button', { name: 'Mixed Topic', exact: true }));
-        fireEvent.click(screen.getByRole('button', { name: /Addition Basic/ }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Add mixed section' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Remove single section' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Quick add Addition' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Quick add Addition' }));
+        fireEvent.click(screen.getAllByRole('button', { name: 'Toggle settings for Addition' })[0]);
         fireEvent.change(screen.getByLabelText('Integer-part digits'), { target: { value: '4' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Duplicate Addition' }));
         const pages = screen.getByLabelText('Pages in this section');
         fireEvent.change(pages, { target: { value: '99' } });
         fireEvent.blur(pages);
@@ -64,16 +66,76 @@ describe('worksheet workflow integration', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Save Template', exact: true }));
         await waitFor(() => expect(mocks.api.post).toHaveBeenCalled());
         const payload = mocks.api.post.mock.calls[0][1].settings_json;
-        expect(payload.workflowMode).toBe('mixed');
+        expect(payload.workflowMode).toBe('accordion');
         expect(payload.answerKeyMode).toBe('separate');
         expect(payload.sections).toHaveLength(1);
         expect(payload.sections[0].mode).toBe('mixed');
         expect(payload.sections[0].pageCount).toBe(50);
         expect(payload.sections[0].topics).toHaveLength(2);
         expect(payload.sections[0].topics.map(topic => topic.topicId)).toEqual(['addition', 'addition']);
-        expect(payload.sections[0].topics.map(topic => topic.modifiers.digits)).toEqual([4, 4]);
+        expect(payload.sections[0].topics.map(topic => topic.modifiers.digits)).toEqual([4, 2]);
         expect(payload.sections[0].topics[0].id).not.toBe(payload.sections[0].topics[1].id);
         await waitFor(() => expect(screen.queryByLabelText('Template Name')).toBeNull());
+    });
+
+    it('prints editable header entries in order and lets the last opened section receive quick adds', async () => {
+        render(<MemoryRouter><HomePage /></MemoryRouter>);
+        fireEvent.click(await screen.findByRole('button', { name: 'Remove single section' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Add header' }));
+        fireEvent.change(screen.getByLabelText('Header title'), { target: { value: 'Number sense' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Quick add Addition' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Generate Worksheet' }));
+        await waitFor(() => expect(mocks.generate).toHaveBeenCalled());
+        expect(mocks.generate.mock.calls.at(-1)[0].sections).toMatchObject([
+            { mode: 'header', title: 'Number sense' },
+            { mode: 'single', topics: [{ topic_id: 'addition', topic_name: 'Addition' }] },
+        ]);
+    });
+
+    it('offers a destination for quick add and defaults to the last opened parent when all are collapsed', async () => {
+        render(<MemoryRouter><HomePage /></MemoryRouter>);
+        fireEvent.click(await screen.findByRole('button', { name: 'Add mixed section' }));
+        const mixedParent = screen.getByRole('button', { name: /Mixed topics/ });
+        expect(mixedParent.getAttribute('aria-expanded')).toBe('true');
+        expect(screen.getByRole('button', { name: /Single topic\s+0/ }).getAttribute('aria-expanded')).toBe('false');
+        fireEvent.click(mixedParent);
+        expect(mixedParent.getAttribute('aria-expanded')).toBe('false');
+        fireEvent.click(screen.getByRole('button', { name: 'Quick add Addition' }));
+
+        const target = screen.getByLabelText('Add to section');
+        expect(target.options[target.selectedIndex].textContent).toContain('Mixed topics');
+        const singleOption = Array.from(target.options).find(option => option.textContent.startsWith('Single topic'));
+        fireEvent.change(target, { target: { value: singleOption.value } });
+        fireEvent.click(screen.getByRole('button', { name: 'Add topic' }));
+        expect(screen.getByRole('button', { name: /Single topic\s+1/ })).toBeTruthy();
+    });
+
+    it('applies parent-owned shared modifiers to each generated topic', async () => {
+        render(<MemoryRouter><HomePage /></MemoryRouter>);
+        fireEvent.click(await screen.findByRole('button', { name: 'Add mixed section' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Remove single section' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Quick add Addition' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Quick add Subtraction' }));
+        fireEvent.click(screen.getByLabelText('Share modifiers across this section'));
+        fireEvent.change(screen.getByLabelText('Integer-part digits'), { target: { value: '4' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Generate Worksheet' }));
+        await waitFor(() => expect(mocks.generate).toHaveBeenCalled());
+        expect(mocks.generate.mock.calls.at(-1)[0].sections[0].topics.map(topic => topic.modifiers.digits)).toEqual([4, 4]);
+    });
+
+    it('customizes topic metadata and modifiers before adding it', async () => {
+        render(<MemoryRouter><HomePage /></MemoryRouter>);
+        fireEvent.click(await screen.findByRole('button', { name: 'Customize Addition' }));
+        expect(screen.getByRole('dialog')).toBeTruthy();
+        fireEvent.change(screen.getByLabelText('Topic name'), { target: { value: 'Warm-up sums' } });
+        fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A short custom set' } });
+        fireEvent.change(screen.getByLabelText('Integer-part digits'), { target: { value: '3' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Add topic' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Generate Worksheet' }));
+        await waitFor(() => expect(mocks.generate).toHaveBeenCalled());
+        expect(mocks.generate.mock.calls.at(-1)[0].sections[0].topics[0]).toMatchObject({
+            topic_name: 'Warm-up sums', description: 'A short custom set', modifiers: { digits: 3 },
+        });
     });
 
     it('loads editing metadata and updates the existing template rather than creating another', async () => {
