@@ -1,12 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import { buildWorksheetRequest, normalizeWorksheetSettings } from './worksheetSettings';
-import { moveWorksheetTopic, reorderWorksheetEntries } from './worksheetStructure';
+import { duplicateWorksheetEntry, duplicateWorksheetTopic, moveWorksheetTopic, promoteWorksheetTopic, reorderWorksheetEntries } from './worksheetStructure';
 
 const topic = (topicId = 'addition', overrides = {}) => ({ id: 'one', subject: 'Arithmetic', topicId,
     topicName: topicId, modifiers: { digits: 2, digit_mode: 'up_to', decimal_places: 0,
         negative_probability: 0, allow_negative_answers: false, division_mode: 'exact', answer_rounding: null, ...overrides } });
 
 describe('loaded worksheet settings', () => {
+    it('duplicates items and children with fresh IDs and independent modifier objects', () => {
+        const entries = [{ id: 'mixed', mode: 'mixed', topics: [{ ...topic(), id: 'first' }, { ...topic('subtraction'), id: 'second' }] }];
+        const copied = duplicateWorksheetEntry(entries, 'mixed');
+        expect(copied).toHaveLength(2);
+        expect(copied[1].id).not.toBe('mixed');
+        expect(copied[1].topics[0].id).not.toBe('first');
+        copied[1].topics[0].modifiers.digits = 5;
+        expect(entries[0].topics[0].modifiers.digits).toBe(2);
+        const children = duplicateWorksheetTopic(entries, 'mixed', 'first')[0].topics;
+        expect(children).toHaveLength(3);
+        expect(children[1].id).not.toBe('first');
+        expect(children[1].topicId).toBe('addition');
+    });
     it('normalizes section bounds and replaces duplicate IDs', () => {
         const result = normalizeWorksheetSettings({ workflowMode: 'mixed', answerKeyMode: 'inline', sections: [{
             id: 'section-1', mode: 'mixed', topics: [topic(), topic()], pageCount: '99', problemsPerPage: '0',
@@ -74,10 +87,23 @@ describe('loaded worksheet settings', () => {
         expect(moved.map(entry => entry.id)).toEqual(['target', 'empty']);
         expect(moved[0].topics.at(-1)).toEqual(moving);
 
-        const demoted = moveWorksheetTopic(moved, 'target', moving.id, 'empty');
+        expect(moveWorksheetTopic(moved, 'target', moving.id, 'empty')).toBe(moved);
+        const demoted = promoteWorksheetTopic(moved, 'target', moving.id, 'empty');
         expect(demoted[0].mode).toBe('single');
         expect(demoted[0].topics).toHaveLength(1);
         expect(demoted[1].topics).toEqual([moving]);
+    });
+
+    it('preserves effective shared modifiers when children become single items', () => {
+        const entries = [{ id: 'mixed', mode: 'mixed', pageCount: 2, problemsPerPage: 8,
+            shareModifiers: true, sharedModifiers: { ...topic().modifiers, digits: 4, allow_negative_answers: true },
+            topics: [{ ...topic(), id: 'addition' }, { ...topic('subtraction'), id: 'subtraction' }],
+        }, { id: 'header', mode: 'header', title: 'Next' }];
+        const promoted = promoteWorksheetTopic(entries, 'mixed', 'addition', 'header');
+        expect(promoted[0]).toMatchObject({ mode: 'single', shareModifiers: false,
+            topics: [{ modifiers: { digits: 4, allow_negative_answers: true } }] });
+        expect(promoted[1]).toMatchObject({ mode: 'single', shareModifiers: false,
+            topics: [{ modifiers: { digits: 4, allow_negative_answers: false } }] });
     });
 
     it.each([null, {}, { sections: 'invalid' }, { sections: [] }])(

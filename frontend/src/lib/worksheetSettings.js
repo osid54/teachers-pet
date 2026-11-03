@@ -76,7 +76,7 @@ export function normalizeWorksheetSettings(settings) {
             }
             return { id: typeof section.id === 'string' ? section.id : uuidv4(), mode: 'header', title: section.title.trim() };
         }
-        if (!Array.isArray(section.topics) || !['single', 'mixed'].includes(section.mode)) {
+        if (!Array.isArray(section.topics) || !section.topics.length || !['single', 'mixed'].includes(section.mode)) {
             throw new Error('Template contains an invalid section.');
         }
         const topics = section.topics.map(normalizeTopic);
@@ -91,6 +91,15 @@ export function normalizeWorksheetSettings(settings) {
             sharedModifiers: shareModifiers
                 ? normalizeModifiers(section.sharedModifiers || topics[0]?.modifiers, 'all') : null,
         };
+    }).flatMap(section => {
+        if (section.mode !== 'single') return [section];
+        return section.topics.map((topic, index) => {
+            const modifiers = { ...(section.shareModifiers ? section.sharedModifiers : topic.modifiers) };
+            if (topic.topicId !== 'subtraction') modifiers.allow_negative_answers = false;
+            if (topic.topicId !== 'division') modifiers.division_mode = 'exact';
+            return { ...section, id: index === 0 ? section.id : uuidv4(),
+                topics: [{ ...topic, modifiers }], shareModifiers: false, sharedModifiers: null };
+        });
     });
 
     const topicSections = sections.filter(section => section.mode !== 'header');

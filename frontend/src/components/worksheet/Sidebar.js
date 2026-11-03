@@ -4,12 +4,13 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui';
 import SectionAccordion from './SectionAccordion';
 import SaveTemplateForm from './SaveTemplateForm';
+import { Save } from 'lucide-react';
 
 export default function WorksheetGenerationSidebar({
     sections, openSectionId, onToggleSection, onAddSection, onAddHeader,
-    onRemoveEntry, onRenameHeader, onUpdateSection, onToggleSharedModifiers,
-    onSharedModifierChange, onTopicModifierChange, onRemoveTopic,
-    onReorderEntries, onMoveTopic, onGenerate, isGenerating,
+    onRemoveEntry, onEditEntry, onDuplicateEntry, onDuplicateTopic, onUpdateSection, onToggleSharedModifiers,
+    onRemoveTopic,
+    onReorderEntries, onMoveTopic, onPromoteTopic, onGenerate, isGenerating,
     onSaveTemplate, isSavingTemplate, saveTemplateError, generateError, pdfUrl,
     currentEditingTemplate, shouldOpenSaveFormOnInit, onSaveFormOpened,
     answerKeyMode, onAnswerKeyModeChange, workflowMode = 'accordion',
@@ -70,15 +71,17 @@ export default function WorksheetGenerationSidebar({
                 {generateError && <p role="alert">{generateError.message || 'Worksheet generation failed.'}</p>}
                 {pdfUrl && <a className="block text-main-700 underline text-center" href={pdfUrl} download="worksheet.pdf">Download Worksheet</a>}
 
-                <section className="mb-sm border-b border-main-300 pb-md">
-                    <fieldset className="p-sm">
+                <section className="mb-sm border-b border-main-300 pb-sm">
+                    <fieldset className="min-w-0 p-0">
                         <legend className="text-main-500 font-semibold">Answer key</legend>
-                        <div className="flex flex-wrap gap-xs" role="group" aria-label="Answer key format">
-                            {[['none', 'No key'], ['separate', 'Separate pages'], ['inline', 'Inline answers']].map(([value, label]) => (
-                                <Button key={value} type="button" variant={answerKeyMode === value ? 'primary' : 'secondary'}
+                        <div className="mt-xs grid grid-cols-3 overflow-hidden rounded-sm border border-main-300" role="group" aria-label="Answer key format">
+                            {[['none', 'None'], ['inline', 'Inline'], ['separate', 'After']].map(([value, label]) => (
+                                <button key={value} type="button"
+                                    className={`min-w-0 px-sm py-xs text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-main-600 ${
+                                        answerKeyMode === value ? 'bg-main-600 text-main-100' : 'bg-transparent text-main-600 hover:bg-main-300'}`}
                                     aria-pressed={answerKeyMode === value} onClick={() => onAnswerKeyModeChange(value)}>
                                     {label}
-                                </Button>
+                                </button>
                             ))}
                         </div>
                     </fieldset>
@@ -86,24 +89,21 @@ export default function WorksheetGenerationSidebar({
 
                 <SectionAccordion sections={sections} openSectionId={openSectionId}
                     onToggleSection={onToggleSection} onAddSection={onAddSection} onAddHeader={onAddHeader}
-                    onRemoveEntry={onRemoveEntry} onRenameHeader={onRenameHeader} onUpdateSection={onUpdateSection}
-                    onToggleSharedModifiers={onToggleSharedModifiers} onSharedModifierChange={onSharedModifierChange}
-                    onTopicModifierChange={onTopicModifierChange} onRemoveTopic={onRemoveTopic}
-                    onReorderEntries={onReorderEntries} onMoveTopic={onMoveTopic} />
+                    onRemoveEntry={onRemoveEntry} onEditEntry={onEditEntry} onDuplicateEntry={onDuplicateEntry}
+                    onDuplicateTopic={onDuplicateTopic} onUpdateSection={onUpdateSection}
+                    onToggleSharedModifiers={onToggleSharedModifiers} onRemoveTopic={onRemoveTopic}
+                    onReorderEntries={onReorderEntries} onMoveTopic={onMoveTopic} onPromoteTopic={onPromoteTopic} />
             </div>
 
             <div className="flex shrink-0 items-center gap-md border-t border-main-300 bg-main-100 px-sm pt-sm pb-sm
                 min-[769px]:px-md min-[769px]:pt-md min-[769px]:pb-sm">
                 <Button onClick={onGenerate} disabled={isGenerateButtonDisabled} isLoading={isGenerating}
-                    className="min-w-0 grow text-sm min-[769px]:text-lg">
-                    Generate Worksheet
+                    className="h-12 min-w-0 grow text-sm min-[769px]:text-lg">
+                    Generate
                 </Button>
                 <Button onClick={() => setShowSaveForm(true)} disabled={isSaveButtonDisabled}
-                    aria-label="Save template" title="Save template" className="aspect-square w-12 shrink-0 p-sm">
-                    <svg aria-hidden="true" className="h-6 w-6" fill="none" viewBox="0 0 24 24">
-                        <path stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-                            d="M4 6a2 2 0 0 1 2-2h8.172a2 2 0 0 1 1.414.586l3.828 3.828A2 2 0 0 1 20 9.828V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM8 4h5v3a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1zM7 15a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v5H7z" />
-                    </svg>
+                    aria-label="Save template" title="Save template" className="h-12 w-12 shrink-0 p-sm">
+                    <Save aria-hidden="true" className="h-6 w-6" />
                 </Button>
             </div>
         </aside>

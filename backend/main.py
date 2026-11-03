@@ -103,6 +103,8 @@ class TemplateResponse(TemplateBase):
     id: int
     user_id: int
     likes_count: int
+    is_liked: bool = False
+    is_favorited: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -334,6 +336,24 @@ async def get_my_templates(
     my_templates = result.scalars().all()
     return [TemplateResponse.from_orm_with_owner(t, current_user) for t in my_templates]
 
+async def template_responses_with_interactions(templates, current_user, db):
+    liked_ids = set()
+    favorited_ids = set()
+    if current_user and templates:
+        template_ids = [template.id for template in templates]
+        liked_ids = set((await db.scalars(select(user_likes_template.c.template_id).where(
+            user_likes_template.c.user_id == current_user.id,
+            user_likes_template.c.template_id.in_(template_ids),
+        ))).all())
+        favorited_ids = set((await db.scalars(select(user_favorites_template.c.template_id).where(
+            user_favorites_template.c.user_id == current_user.id,
+            user_favorites_template.c.template_id.in_(template_ids),
+        ))).all())
+    return [{**TemplateResponse.from_orm_with_owner(template, template.owner),
+        "is_liked": template.id in liked_ids, "is_favorited": template.id in favorited_ids}
+        for template in templates]
+
+
 @app.get("/templates/public", response_model=List[TemplateResponse])
 async def get_public_templates(
     skip: int = Query(0, ge=0),
@@ -343,7 +363,7 @@ async def get_public_templates(
     sort_by: str = Query("created_at", regex="^(created_at|likes_count)$"),
     sort_order: str = Query("desc", regex="^(asc|desc)$"),
     db: AsyncSession = Depends(get_db),
-    #current_user: Optional[User] = Depends(get_optional_current_user)
+    current_user: Optional[User] = Depends(get_optional_current_user)
 ):
     query = select(Template).options(joinedload(Template.owner)).filter(Template.is_public == True)
 
@@ -373,9 +393,7 @@ async def get_public_templates(
     result = await db.execute(query)
     public_templates = result.scalars().all()
 
-    return [
-        TemplateResponse.from_orm_with_owner(t, t.owner) for t in public_templates
-    ]
+    return await template_responses_with_interactions(public_templates, current_user, db)
 
 @app.get("/templates/saved", response_model=List[TemplateResponse])
 async def get_saved_templates(
@@ -418,9 +436,7 @@ async def get_saved_templates(
     result = await db.execute(query)
     saved_templates = result.scalars().all()
 
-    return [
-        TemplateResponse.from_orm_with_owner(t, t.owner) for t in saved_templates
-    ]
+    return await template_responses_with_interactions(saved_templates, current_user, db)
 
 @app.get("/templates/{template_id}", response_model=TemplateResponse)
 async def get_template_by_id(

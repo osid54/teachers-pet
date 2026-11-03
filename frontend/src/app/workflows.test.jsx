@@ -41,6 +41,17 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('worksheet workflow integration', () => {
+    it('adds single topics as named peer items without nested topic rows', async () => {
+        render(<MemoryRouter><HomePage /></MemoryRouter>);
+        fireEvent.click(await screen.findByRole('button', { name: 'Quick add Addition' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Quick add Subtraction' }));
+        expect(screen.getByRole('button', { name: 'Addition', exact: true })).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Subtraction', exact: true })).toBeTruthy();
+        expect(screen.queryByRole('button', { name: 'Toggle settings for Addition' })).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Generate', exact: true }));
+        await waitFor(() => expect(mocks.generate).toHaveBeenCalled());
+        expect(mocks.generate.mock.calls.at(-1)[0].sections.map(section => section.mode)).toEqual(['single', 'single']);
+    });
     it('shows only supported topics and reports corrupt saved template JSON without crashing', async () => {
         localStorage.setItem('tempLoadTemplate', '{broken');
         render(<MemoryRouter><HomePage /></MemoryRouter>);
@@ -50,15 +61,15 @@ describe('worksheet workflow integration', () => {
         expect(localStorage.getItem('tempLoadTemplate')).toBeNull();
     });
 
-    it('adds topics to a mixed parent, edits inline settings, and saves the accordion state', async () => {
+    it('adds topics to a mixed parent, edits modifiers in its popup, and saves the accordion state', async () => {
         render(<MemoryRouter><HomePage /></MemoryRouter>);
         fireEvent.click(await screen.findByRole('button', { name: 'Add mixed section' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Remove single section' }));
         fireEvent.click(screen.getByRole('button', { name: 'Quick add Addition' }));
         fireEvent.click(screen.getByRole('button', { name: 'Quick add Addition' }));
-        fireEvent.click(screen.getAllByRole('button', { name: 'Toggle settings for Addition' })[0]);
-        fireEvent.change(screen.getByLabelText('Integer-part digits'), { target: { value: '4' } });
-        const pages = screen.getByLabelText('Pages in this section');
+        fireEvent.click(screen.getAllByRole('button', { name: 'Edit Addition' })[0]);
+        fireEvent.change(screen.getByRole('spinbutton', { name: 'Integer-part digits' }), { target: { value: '4' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+        const pages = screen.getByRole('spinbutton', { name: 'Pages in this section' });
         fireEvent.change(pages, { target: { value: '99' } });
         fireEvent.blur(pages);
         fireEvent.click(screen.getByRole('button', { name: 'Save template' }));
@@ -78,13 +89,14 @@ describe('worksheet workflow integration', () => {
         await waitFor(() => expect(screen.queryByLabelText('Template Name')).toBeNull());
     });
 
-    it('prints editable header entries in order and lets the last opened section receive quick adds', async () => {
+    it('prints editable header entries before standalone quick-added topics', async () => {
         render(<MemoryRouter><HomePage /></MemoryRouter>);
-        fireEvent.click(await screen.findByRole('button', { name: 'Remove single section' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Add header' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Add header' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Edit header' }));
         fireEvent.change(screen.getByLabelText('Header title'), { target: { value: 'Number sense' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
         fireEvent.click(screen.getByRole('button', { name: 'Quick add Addition' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Generate Worksheet' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Generate', exact: true }));
         await waitFor(() => expect(mocks.generate).toHaveBeenCalled());
         expect(mocks.generate.mock.calls.at(-1)[0].sections).toMatchObject([
             { mode: 'header', title: 'Number sense' },
@@ -92,35 +104,88 @@ describe('worksheet workflow integration', () => {
         ]);
     });
 
-    it('offers a destination for quick add and defaults to the last opened parent when all are collapsed', async () => {
+    it('quick adds only to an open mixed item and defaults to standalone topics otherwise', async () => {
         render(<MemoryRouter><HomePage /></MemoryRouter>);
+        expect(screen.queryByRole('button', { name: 'Add single-topic section' })).toBeNull();
+        fireEvent.click(await screen.findByRole('button', { name: 'Quick add Multiplication' }));
         fireEvent.click(await screen.findByRole('button', { name: 'Add mixed section' }));
-        const mixedParent = screen.getByRole('button', { name: /Mixed topics/ });
+        const mixedParent = screen.getByRole('button', { name: /^Mixed topics\s+\d+$/ });
         expect(mixedParent.getAttribute('aria-expanded')).toBe('true');
-        expect(screen.getByRole('button', { name: /Single topic\s+0/ }).getAttribute('aria-expanded')).toBe('false');
+        expect(screen.getByRole('button', { name: 'Multiplication', exact: true }).getAttribute('aria-expanded')).toBe('false');
         fireEvent.click(mixedParent);
         expect(mixedParent.getAttribute('aria-expanded')).toBe('false');
         fireEvent.click(screen.getByRole('button', { name: 'Quick add Addition' }));
 
-        const target = screen.getByLabelText('Add to section');
-        expect(target.options[target.selectedIndex].textContent).toContain('Mixed topics');
-        const singleOption = Array.from(target.options).find(option => option.textContent.startsWith('Single topic'));
-        fireEvent.change(target, { target: { value: singleOption.value } });
-        fireEvent.click(screen.getByRole('button', { name: 'Add topic' }));
-        expect(screen.getByRole('button', { name: /Single topic\s+1/ })).toBeTruthy();
+        expect(screen.queryByRole('dialog')).toBeNull();
+        expect(screen.getByRole('button', { name: 'Addition', exact: true })).toBeTruthy();
+        expect(screen.getByRole('button', { name: /Mixed topics\s+0/ })).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: /Mixed topics\s+0/ }));
+        fireEvent.click(screen.getByRole('button', { name: 'Quick add Subtraction' }));
+        expect(screen.getByRole('button', { name: 'Toggle settings for Subtraction' })).toBeTruthy();
+        expect(screen.getByRole('button', { name: /Mixed topics\s+1/ }).getAttribute('aria-expanded')).toBe('true');
+        fireEvent.click(screen.getByRole('button', { name: /Mixed topics\s+1/ }));
+        fireEvent.click(screen.getByRole('button', { name: 'Quick add Division' }));
+        expect(screen.getByRole('button', { name: 'Division', exact: true })).toBeTruthy();
+        expect(screen.queryByRole('dialog')).toBeNull();
     });
 
     it('applies parent-owned shared modifiers to each generated topic', async () => {
         render(<MemoryRouter><HomePage /></MemoryRouter>);
         fireEvent.click(await screen.findByRole('button', { name: 'Add mixed section' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Remove single section' }));
         fireEvent.click(screen.getByRole('button', { name: 'Quick add Addition' }));
         fireEvent.click(screen.getByRole('button', { name: 'Quick add Subtraction' }));
         fireEvent.click(screen.getByLabelText('Share modifiers across this section'));
-        fireEvent.change(screen.getByLabelText('Integer-part digits'), { target: { value: '4' } });
-        fireEvent.click(screen.getByRole('button', { name: 'Generate Worksheet' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Edit mixed topics' }));
+        fireEvent.change(screen.getByRole('spinbutton', { name: 'Integer-part digits' }), { target: { value: '4' } });
+        fireEvent.click(screen.getByLabelText('Allow negative answers'));
+        fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Quick add Multiplication' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Addition' }));
+        expect(screen.getByRole('spinbutton', { name: 'Integer-part digits' }).disabled).toBe(true);
+        fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Generate', exact: true }));
         await waitFor(() => expect(mocks.generate).toHaveBeenCalled());
-        expect(mocks.generate.mock.calls.at(-1)[0].sections[0].topics.map(topic => topic.modifiers.digits)).toEqual([4, 4]);
+        expect(mocks.generate.mock.calls.at(-1)[0].sections[0].topics.map(topic => topic.modifiers.digits)).toEqual([4, 4, 4]);
+        expect(mocks.generate.mock.calls.at(-1)[0].sections[0].topics.map(topic => topic.modifiers.allow_negative_answers)).toEqual([false, true, false]);
+    });
+
+    it('edits and duplicates standalone items without linking their modifiers', async () => {
+        render(<MemoryRouter><HomePage /></MemoryRouter>);
+        fireEvent.click(await screen.findByRole('button', { name: 'Quick add Addition' }));
+        expect(screen.queryByRole('spinbutton', { name: 'Integer-part digits' })).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Edit Addition' }));
+        fireEvent.change(screen.getByLabelText('Topic name'), { target: { value: 'Warm-up' } });
+        fireEvent.change(screen.getByLabelText('Integer-part digits'), { target: { value: '3' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Duplicate Warm-up' }));
+        fireEvent.click(screen.getAllByRole('button', { name: 'Edit Warm-up' })[1]);
+        fireEvent.change(screen.getByLabelText('Integer-part digits'), { target: { value: '5' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Generate', exact: true }));
+        await waitFor(() => expect(mocks.generate).toHaveBeenCalled());
+        expect(mocks.generate.mock.calls.at(-1)[0].sections.map(item => item.topics[0].modifiers.digits)).toEqual([3, 5]);
+    });
+
+    it('moves a standalone topic into a mixed item without retaining an empty root item', async () => {
+        render(<MemoryRouter><HomePage /></MemoryRouter>);
+        fireEvent.click(await screen.findByRole('button', { name: 'Quick add Addition' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Add mixed section' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Quick add Subtraction' }));
+        const transfer = {
+            value: '', types: ['text/plain'],
+            setData(_type, value) { this.value = value; },
+            getData() { return this.value; },
+        };
+        fireEvent.dragStart(screen.getByRole('button', { name: 'Drag single section' }), { dataTransfer: transfer });
+        fireEvent.drop(screen.getByRole('button', { name: /Mixed topics\s+1/ }), { dataTransfer: transfer });
+        expect(screen.queryByRole('button', { name: 'Addition', exact: true })).toBeNull();
+        expect(screen.getByRole('button', { name: 'Toggle settings for Addition' })).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Generate', exact: true }));
+        await waitFor(() => expect(mocks.generate).toHaveBeenCalled());
+        const requestSections = mocks.generate.mock.calls.at(-1)[0].sections;
+        expect(requestSections).toHaveLength(1);
+        expect(requestSections[0]).toMatchObject({ mode: 'mixed',
+            topics: [{ topic_id: 'subtraction' }, { topic_id: 'addition' }] });
     });
 
     it('customizes topic metadata and modifiers before adding it', async () => {
@@ -131,7 +196,7 @@ describe('worksheet workflow integration', () => {
         fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'A short custom set' } });
         fireEvent.change(screen.getByLabelText('Integer-part digits'), { target: { value: '3' } });
         fireEvent.click(screen.getByRole('button', { name: 'Add topic' }));
-        fireEvent.click(screen.getByRole('button', { name: 'Generate Worksheet' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Generate', exact: true }));
         await waitFor(() => expect(mocks.generate).toHaveBeenCalled());
         expect(mocks.generate.mock.calls.at(-1)[0].sections[0].topics[0]).toMatchObject({
             topic_name: 'Warm-up sums', description: 'A short custom set', modifiers: { digits: 3 },
@@ -153,7 +218,7 @@ describe('worksheet workflow integration', () => {
             sections: [{ id: 'section-1', mode: 'mixed', topics: [topics[0], { ...topics[0], id: 'two', topicId: 'subtraction' }],
                 pageCount: 2, problemsPerPage: 50 }] }));
         const { unmount } = render(<MemoryRouter><HomePage /></MemoryRouter>);
-        fireEvent.click(await screen.findByRole('button', { name: 'Generate Worksheet' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Generate', exact: true }));
         const download = await screen.findByRole('link', { name: 'Download Worksheet' });
         expect(download.getAttribute('href')).toBe('blob:test-pdf');
         expect(mocks.generate.mock.calls[0][0]).toMatchObject({ answer_key_mode: 'inline', sections: [{
@@ -169,13 +234,38 @@ describe('worksheet workflow integration', () => {
         localStorage.setItem('tempLoadTemplate', JSON.stringify({ workflowMode: 'single', answerKeyMode: 'none',
             sections: [{ id: 'section-1', mode: 'single', topics, pageCount: 1, problemsPerPage: 10 }] }));
         render(<MemoryRouter><HomePage /></MemoryRouter>);
-        fireEvent.click(await screen.findByRole('button', { name: 'Generate Worksheet' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Generate', exact: true }));
         expect((await screen.findByRole('alert')).textContent).toContain('Network failed');
-        expect(screen.getByRole('button', { name: 'Generate Worksheet' }).disabled).toBe(false);
+        expect(screen.getByRole('button', { name: 'Generate', exact: true }).disabled).toBe(false);
     });
 });
 
 describe('template browsing integration', () => {
+    it('fills and clears template action icons after successful toggles', async () => {
+        mocks.api.post.mockResolvedValue({ data: { message: 'Updated', likes_count: 1 } });
+        render(<MemoryRouter><TemplatesPage /></MemoryRouter>);
+        const like = await screen.findByRole('button', { name: 'Like Practice' });
+        const favorite = screen.getByRole('button', { name: 'Favorite Practice' });
+        expect(like.getAttribute('aria-pressed')).toBe('false');
+        expect(favorite.querySelector('svg').getAttribute('fill')).toBe('none');
+        fireEvent.click(like);
+        await waitFor(() => expect(like.getAttribute('aria-pressed')).toBe('true'));
+        expect(like.querySelector('svg').getAttribute('fill')).toBe('currentColor');
+        fireEvent.click(favorite);
+        await waitFor(() => expect(favorite.getAttribute('aria-pressed')).toBe('true'));
+        expect(favorite.querySelector('svg').getAttribute('fill')).toBe('currentColor');
+        fireEvent.click(like);
+        fireEvent.click(favorite);
+        await waitFor(() => expect(like.getAttribute('aria-pressed')).toBe('false'));
+        expect(favorite.getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('renders existing server-backed like and bookmark state as filled', async () => {
+        mocks.api.get.mockResolvedValue({ data: [{ ...template, is_liked: true, is_favorited: true }] });
+        render(<MemoryRouter><TemplatesPage /></MemoryRouter>);
+        expect((await screen.findByRole('button', { name: 'Like Practice' })).getAttribute('aria-pressed')).toBe('true');
+        expect(screen.getByRole('button', { name: 'Favorite Practice' }).querySelector('svg').getAttribute('fill')).toBe('currentColor');
+    });
     it('filters owned templates even though the API returns the entire owned list', async () => {
         render(<MemoryRouter><TemplatesPage /></MemoryRouter>);
         fireEvent.click(await screen.findByRole('button', { name: 'My Templates' }));

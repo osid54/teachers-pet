@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import { useGenerateWorksheet } from '@/hooks/useGenerateWorksheet';
 import { supportedCurriculumData } from '@/lib/curriculum';
 import { buildWorksheetRequest, normalizeWorksheetSettings } from '@/lib/worksheetSettings';
-import { moveWorksheetTopic, reorderWorksheetEntries, removeWorksheetTopic } from '@/lib/worksheetStructure';
+import { duplicateWorksheetEntry, duplicateWorksheetTopic, moveWorksheetTopic, promoteWorksheetTopic, reorderWorksheetEntries, removeWorksheetTopic } from '@/lib/worksheetStructure';
 import { useAuth } from '@/context/AuthContext';
 
 import SubjectHeader from '@/components/worksheet/SubjectHeader';
@@ -16,6 +16,7 @@ import ProblemTypeCard from '@/components/worksheet/ProblemTypeCard';
 import HowToUse from '@/components/layout/HowToUse';
 import Sidebar from '@/components/worksheet/Sidebar';
 import TopicCustomizeModal from '@/components/worksheet/TopicCustomizeModal';
+import SectionSettingsModal from '@/components/worksheet/SectionSettingsModal';
 import { DEFAULT_TOPIC_MODIFIERS } from '@/components/worksheet/TopicModifierFields';
 
 const createSection = (mode = 'single') => ({
@@ -29,10 +30,12 @@ function PageContent() {
   const { authApi, isLoggedIn, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  const [sections, setSections] = useState(() => [createSection('single')]);
-  const [openSectionId, setOpenSectionId] = useState(() => sections[0].id);
-  const [lastOpenedSectionId, setLastOpenedSectionId] = useState(() => sections[0].id);
+  const [sections, setSections] = useState([]);
+  const [openSectionId, setOpenSectionId] = useState(null);
+  const [lastOpenedSectionId, setLastOpenedSectionId] = useState(null);
   const [topicDialog, setTopicDialog] = useState(null);
+  const [sectionDialogId, setSectionDialogId] = useState(null);
+  const sectionDialog = sections.find(section => section.id === sectionDialogId);
   const [answerKeyMode, setAnswerKeyMode] = useState('separate');
 
   const [searchParams] = useSearchParams();
@@ -67,10 +70,7 @@ function PageContent() {
 
   const addHeader = () => {
     const header = createHeader();
-    const section = createSection('single');
-    setSections(current => [...current, header, section]);
-    setOpenSectionId(section.id);
-    setLastOpenedSectionId(section.id);
+    setSections(current => [...current, header]);
   };
 
   const removeEntry = (entryId) => {
@@ -93,23 +93,22 @@ function PageContent() {
         return { ...section, shareModifiers: true,
           sharedModifiers: section.sharedModifiers || section.topics[0]?.modifiers || { ...DEFAULT_TOPIC_MODIFIERS } };
       }
-      const topics = section.topics.map(topic => ({ ...topic,
-        modifiers: section.sharedModifiers || topic.modifiers }));
-      return { ...section, topics, shareModifiers: false, sharedModifiers: null };
+      return { ...section, shareModifiers: false, sharedModifiers: null };
     }));
   };
 
-  const updateSharedModifiers = (sectionId, modifiers) => {
-    updateSection(sectionId, { sharedModifiers: modifiers });
-  };
-
-  const updateTopicModifiers = (sectionId, topicId, modifiers) => {
-    setSections(current => current.map(section => {
-      if (section.id !== sectionId) return section;
-      if (section.shareModifiers) return { ...section, sharedModifiers: modifiers };
-      return { ...section, topics: section.topics.map(topic => topic.id === topicId
-        ? { ...topic, modifiers } : topic) };
-    }));
+  const editEntry = (sectionId, topicId) => {
+    const section = sections.find(item => item.id === sectionId);
+    if (!section) return;
+    if (!topicId && section.mode !== 'single') {
+      setSectionDialogId(section.id);
+      return;
+    }
+    const topic = topicId ? section.topics.find(item => item.id === topicId) : section.topics[0];
+    if (!topic) return;
+    setTopicDialog({ topic: { ...topic, name: topic.topicName }, subject: topic.subject,
+      customize: true, editing: true, sectionId,
+      sharedModifiers: section.shareModifiers ? section.sharedModifiers : null });
   };
 
   const removeTopic = (sectionId, topicId) => {
@@ -134,12 +133,26 @@ function PageContent() {
   });
 
   const addTopicToSection = (instance, sectionId) => {
+    if (sectionId === 'new') {
+      const section = { ...createSection('single'), topics: [instance] };
+      setSections(current => [...current, section]);
+      setOpenSectionId(section.id);
+      setLastOpenedSectionId(section.id);
+      setTopicDialog(null);
+      return;
+    }
     const target = sections.find(section => section.id === sectionId);
     if (!target || target.mode === 'header') return;
-    const newInstance = target.shareModifiers
-      ? { ...instance, modifiers: target.sharedModifiers } : instance;
+    if (target.mode === 'single' && target.topics.length) {
+      addTopicToSection(instance, 'new');
+      return;
+    }
+    if (target.topics.length >= 4) {
+      toast.error('A mixed item can contain at most four topics.');
+      return;
+    }
     setSections(current => current.map(section => section.id === sectionId
-      ? { ...section, topics: [...section.topics, newInstance] } : section));
+      ? { ...section, topics: [...section.topics, instance] } : section));
     setOpenSectionId(sectionId);
     setLastOpenedSectionId(sectionId);
     setTopicDialog(null);
@@ -148,13 +161,26 @@ function PageContent() {
   const handleTopicCardAction = (topic, customize) => {
     const subject = supportedCurriculumData.find(item => item.topics.some(candidate => candidate.id === topic.id))?.subject;
     if (!subject) return;
-    const topicParents = sections.filter(section => section.mode !== 'header');
-    const eligible = topicParents;
-    if (!customize && topicParents.length === 1 && eligible.length === 1) {
-      addTopicToSection(makeTopicInstance(topic, subject), eligible[0].id);
+    if (!customize) {
+      const openMixed = sections.find(section => section.id === openSectionId && section.mode === 'mixed');
+      const emptySingle = sections.find(section => section.mode === 'single' && section.topics.length === 0);
+      addTopicToSection(makeTopicInstance(topic, subject), openMixed?.id || emptySingle?.id || 'new');
       return;
     }
     setTopicDialog({ topic, subject, customize });
+  };
+
+  const confirmTopicDialog = (instance, sectionId) => {
+    if (!topicDialog?.editing) {
+      addTopicToSection(instance, sectionId);
+      return;
+    }
+    setSections(current => current.map(section => section.id !== sectionId ? section : {
+      ...section, topics: section.topics.map(topic => topic.id !== instance.id ? topic : {
+        ...instance, modifiers: section.shareModifiers ? topic.modifiers : instance.modifiers,
+      }),
+    }));
+    setTopicDialog(null);
   };
 
   const handleSaveTemplate = async (templateData) => {
@@ -288,15 +314,19 @@ function PageContent() {
           onAddSection={addSection}
           onAddHeader={addHeader}
           onRemoveEntry={removeEntry}
-          onRenameHeader={(headerId, title) => setSections(current => current.map(section =>
-            section.id === headerId ? { ...section, title } : section))}
+          onEditEntry={editEntry}
+          onDuplicateEntry={entryId => setSections(current => duplicateWorksheetEntry(current, entryId))}
+          onDuplicateTopic={(sectionId, topicId) => setSections(current => duplicateWorksheetTopic(current, sectionId, topicId))}
           onUpdateSection={updateSection}
           onToggleSharedModifiers={toggleSharedModifiers}
-          onSharedModifierChange={updateSharedModifiers}
-          onTopicModifierChange={updateTopicModifiers}
           onRemoveTopic={removeTopic}
           onReorderEntries={reorderEntries}
           onMoveTopic={moveTopic}
+          onPromoteTopic={(sourceId, topicId, targetId) => {
+            setSections(current => promoteWorksheetTopic(current, sourceId, topicId, targetId));
+            setOpenSectionId(topicId);
+            setLastOpenedSectionId(topicId);
+          }}
           onGenerate={handleGenerateButtonClick}
           isGenerating={generateLoading}
           generateError={generateError}
@@ -312,10 +342,16 @@ function PageContent() {
           onSaveFormOpened={() => setShouldOpenSaveFormAfterLoad(false)}
         />
       )}
-      {topicDialog && <TopicCustomizeModal key={`${topicDialog.topic.id}-${topicDialog.customize}`}
+      {topicDialog && <TopicCustomizeModal key={`${topicDialog.topic.id}-${topicDialog.customize}-${topicDialog.editing}`}
         topic={topicDialog.topic} subject={topicDialog.subject} sections={sections}
-        initialSectionId={openSectionId || lastOpenedSectionId} customize={topicDialog.customize}
-        onConfirm={addTopicToSection} onClose={() => setTopicDialog(null)} />}
+        initialSectionId={topicDialog.editing ? topicDialog.sectionId : openSectionId || lastOpenedSectionId}
+        customize={topicDialog.customize} editing={topicDialog.editing} sharedModifiers={topicDialog.sharedModifiers}
+        onConfirm={confirmTopicDialog} onClose={() => setTopicDialog(null)} />}
+      {sectionDialog && <SectionSettingsModal key={sectionDialog.id} section={sectionDialog}
+        onSave={(sectionId, settings) => {
+          updateSection(sectionId, settings);
+          setSectionDialogId(null);
+        }} onClose={() => setSectionDialogId(null)} />}
     </div>
   );
 }

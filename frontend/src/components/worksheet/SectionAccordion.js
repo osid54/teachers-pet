@@ -1,7 +1,9 @@
+import { Fragment, useState } from 'react';
 import SelectedTopicInstance from './SelectedTopicInstance';
-import TopicModifierFields from './TopicModifierFields';
 import UniformSettingsForm from './UniformSettingsForm';
-import { Button, Checkbox, Input } from '@/components/ui';
+import { Button } from '@/components/ui';
+import { Heading, Layers, Plus } from 'lucide-react';
+import WorksheetItemBar, { ItemPanel } from './WorksheetItemBar';
 
 const readDrag = event => {
     try { return JSON.parse(event.dataTransfer.getData('text/plain')); } catch { return null; }
@@ -14,15 +16,17 @@ export default function SectionAccordion({
     onAddSection,
     onAddHeader,
     onRemoveEntry,
-    onRenameHeader,
+    onEditEntry,
+    onDuplicateEntry,
+    onDuplicateTopic,
     onUpdateSection,
     onToggleSharedModifiers,
-    onSharedModifierChange,
-    onTopicModifierChange,
     onRemoveTopic,
     onReorderEntries,
     onMoveTopic,
+    onPromoteTopic,
 }) {
+    const [hiddenChildren, setHiddenChildren] = useState({});
     const handleDragStart = (event, payload) => {
         event.dataTransfer.effectAllowed = 'move';
         event.dataTransfer.setData('text/plain', JSON.stringify(payload));
@@ -33,104 +37,111 @@ export default function SectionAccordion({
         if (drag?.kind !== 'entry') return;
         event.preventDefault();
         event.stopPropagation();
+        const source = sections.find(section => section.id === drag.id);
+        const target = sections.find(section => section.id === targetId);
+        if (source?.mode === 'single' && source.topics.length === 1 && target?.mode === 'mixed') {
+            onMoveTopic(source.id, source.topics[0].id, target.id);
+            return;
+        }
         if (drag.id !== targetId) onReorderEntries(drag.id, targetId);
     };
 
-    const handleSectionDrop = (event, targetSection) => {
+    const topicDrag = (event) => {
         const drag = readDrag(event);
-        if (drag?.kind !== 'topic' || targetSection.mode === 'header') return;
+        if (drag?.kind === 'topic') return drag;
+        const source = drag?.kind === 'entry' && sections.find(section => section.id === drag.id);
+        if (source?.mode === 'single' && source.topics.length === 1) {
+            return { sectionId: source.id, topicId: source.topics[0].id };
+        }
+        return null;
+    };
+
+    const handleSectionDrop = (event, targetSection) => {
+        const drag = topicDrag(event);
+        if (!drag) return;
         event.preventDefault();
         event.stopPropagation();
-        onMoveTopic(drag.sectionId, drag.topicId, targetSection.id);
+        if (targetSection.mode === 'mixed') onMoveTopic(drag.sectionId, drag.topicId, targetSection.id);
+        else onPromoteTopic?.(drag.sectionId, drag.topicId, targetSection.id);
     };
 
     const handleTopicDrop = (event, targetSectionId, targetTopicId) => {
-        const drag = readDrag(event);
-        if (drag?.kind !== 'topic') return;
+        const drag = topicDrag(event);
+        if (!drag) return;
         event.preventDefault();
         event.stopPropagation();
         onMoveTopic(drag.sectionId, drag.topicId, targetSectionId, targetTopicId);
     };
 
     return (
-        <div className="flex flex-col gap-sm" aria-label="Worksheet sections">
+        <div className="flex flex-col gap-xxs" aria-label="Worksheet sections">
             {sections.map(section => {
                 const isOpen = section.id === openSectionId;
                 const isHeader = section.mode === 'header';
-                const sectionLabel = section.mode === 'mixed' ? 'Mixed topics' :
-                    (section.topics?.length || 0) > 1 ? 'Separate topics' : 'Single topic';
+                const isMixed = section.mode === 'mixed';
+                const sectionLabel = isHeader ? section.title : isMixed ? 'Mixed topics' : section.topics?.[0]?.topicName || 'Single topic';
+                const childrenOpen = !hiddenChildren[section.id];
+                const panelId = `section-content-${section.id}`;
+                const childrenPanelId = `section-children-${section.id}`;
                 return (
-                    <article key={section.id} className="rounded-sm border border-main-300 bg-main-100"
+                    <Fragment key={section.id}>
+                    <article data-open={!isHeader && isOpen}
+                        className={`rounded-sm border bg-main-100 transition-[border-color,box-shadow] duration-200 motion-reduce:transition-none ${
+                            !isHeader && isOpen ? 'border-main-500 ring-2 ring-main-500 ring-inset' : 'border-main-300'}`}
                         onDragOver={event => {
-                            const drag = readDrag(event);
-                            if (drag?.kind === 'entry' || (drag?.kind === 'topic' && !isHeader)) event.preventDefault();
+                            if (event.dataTransfer.types?.includes('text/plain')) event.preventDefault();
                         }}
                         onDrop={event => {
                             if (readDrag(event)?.kind === 'entry') handleRootDrop(event, section.id);
                             else handleSectionDrop(event, section);
                         }}>
-                        {isHeader ? (
-                            <div className="flex items-center gap-xs p-sm">
-                                <Button type="button" variant="secondary" draggable aria-label="Drag header"
-                                    title="Drag to reorder" onDragStart={event => handleDragStart(event, { kind: 'entry', id: section.id })}
-                                    className="shrink-0 px-sm">⠿</Button>
-                                <Input label="Header title" value={section.title} onChange={event => onRenameHeader(section.id, event.target.value)} />
-                                <Button type="button" variant="secondary" aria-label="Remove header"
-                                    onClick={() => onRemoveEntry(section.id)} className="shrink-0 px-sm">×</Button>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="flex items-center gap-xs p-sm">
-                                    <Button type="button" variant="secondary" draggable aria-label={`Drag ${section.mode} section`}
-                                        title="Drag to reorder" onDragStart={event => handleDragStart(event, { kind: 'entry', id: section.id })}
-                                        className="shrink-0 px-sm">⠿</Button>
-                                    <button type="button" aria-expanded={isOpen} aria-controls={`section-content-${section.id}`}
-                                        onClick={() => onToggleSection(section.id)}
-                                        className="flex min-w-0 grow items-center gap-sm bg-transparent p-xs text-left text-main-700">
-                                        <span aria-hidden="true">{isOpen ? '⌄' : '›'}</span>
-                                        <span className="truncate font-semibold">{sectionLabel}</span>
-                                        <span className="ml-auto shrink-0 text-sm text-main-500">{section.topics.length}</span>
-                                    </button>
-                                    <Button type="button" variant="secondary" aria-label={`Remove ${section.mode} section`}
-                                        onClick={() => onRemoveEntry(section.id)} className="shrink-0 px-sm">×</Button>
-                                </div>
-                                {isOpen && <div id={`section-content-${section.id}`} className="flex flex-col gap-md border-t border-main-300 p-md">
-                                    <Checkbox label="Mix topics on each page" checked={section.mode === 'mixed'}
-                                        onChange={event => onUpdateSection(section.id, { mode: event.target.checked ? 'mixed' : 'single' })} />
-                                    <UniformSettingsForm settings={section} onChange={event => {
-                                        const { name, value } = event.target;
-                                        onUpdateSection(section.id, { [name]: Number(value) });
-                                    }} />
-                                    <Checkbox label="Share modifiers across this section" checked={Boolean(section.shareModifiers)}
+                        <WorksheetItemBar title={sectionLabel} count={isMixed ? section.topics.length : null}
+                            open={!isHeader && isOpen} panelId={panelId}
+                            onToggle={isHeader ? undefined : () => onToggleSection(section.id)}
+                            dragLabel={isHeader ? 'Drag header' : `Drag ${section.mode} section`}
+                            onDragStart={event => handleDragStart(event, { kind: 'entry', id: section.id })}
+                            editLabel={isHeader ? 'Edit header' : isMixed ? 'Edit mixed topics' : `Edit ${sectionLabel}`}
+                            onEdit={() => onEditEntry?.(section.id)}
+                            duplicateLabel={`Duplicate ${sectionLabel}`} onDuplicate={() => onDuplicateEntry?.(section.id)}
+                            removeLabel={isHeader ? 'Remove header' : `Remove ${section.mode} section`}
+                            onRemove={() => onRemoveEntry(section.id)}
+                            childrenOpen={childrenOpen} childrenPanelId={childrenPanelId}
+                            onToggleChildren={isMixed ? () => setHiddenChildren(current => ({ ...current, [section.id]: !current[section.id] })) : undefined} />
+                        {!isHeader && <ItemPanel open={isOpen} id={panelId}>
+                            <div className="flex flex-col gap-xs border-t border-main-300 px-sm py-xs">
+                                <UniformSettingsForm settings={section} onChange={event => {
+                                    const { name, value } = event.target;
+                                    onUpdateSection(section.id, { [name]: Number(value) });
+                                }} />
+                                {isMixed && <label className="flex items-center gap-xs py-xxs text-xs text-main-600">
+                                    <input type="checkbox" aria-label="Share modifiers across this section"
+                                        className="h-4 w-4 accent-main-600" checked={Boolean(section.shareModifiers)}
                                         onChange={event => onToggleSharedModifiers(section.id, event.target.checked)} />
-                                    {section.shareModifiers && <div className="rounded-sm border border-main-300 p-sm">
-                                        <h4 className="m-0 mb-sm text-sm font-semibold text-main-600">Shared modifiers</h4>
-                                        <TopicModifierFields topicId="all" modifiers={section.sharedModifiers}
-                                            onChange={value => onSharedModifierChange(section.id, value)} />
-                                    </div>}
-                                    <div className="flex flex-col gap-xs"
-                                        onDragOver={event => { if (readDrag(event)?.kind === 'topic') event.preventDefault(); }}
-                                        onDrop={event => handleSectionDrop(event, section)}>
-                                        {section.topics.length === 0 && <p className="m-0 text-sm text-main-500">Add a topic from the catalog.</p>}
-                                        {section.topics.map(topic => <SelectedTopicInstance key={topic.id} instance={topic}
-                                            modifiers={section.shareModifiers ? section.sharedModifiers : topic.modifiers}
-                                            sharedModifiers={section.shareModifiers}
-                                            onModifierChange={(topicId, value) => onTopicModifierChange(section.id, topicId, value)}
-                                            onRemove={topicId => onRemoveTopic(section.id, topicId)}
-                                            dragLabel={`${topic.topicName} from ${sectionLabel}`}
-                                            onDragStart={event => handleDragStart(event, { kind: 'topic', sectionId: section.id, topicId: topic.id })}
-                                            onDrop={event => handleTopicDrop(event, section.id, topic.id)} />)}
-                                    </div>
-                                </div>}
-                            </>
-                        )}
+                                    Share modifiers
+                                </label>}
+                            </div>
+                        </ItemPanel>}
                     </article>
+                        {isMixed && <ItemPanel open={childrenOpen} id={childrenPanelId}>
+                            <div className="ml-md flex flex-col gap-xxs"
+                                onDragOver={event => { if (event.dataTransfer.types?.includes('text/plain')) event.preventDefault(); }}
+                                onDrop={event => handleSectionDrop(event, section)}>
+                                {section.topics.length === 0 && <p className="m-0 px-sm py-xs text-xs text-main-500">Add a topic from the catalog.</p>}
+                                {section.topics.map(topic => <SelectedTopicInstance key={topic.id} instance={topic} settings={section}
+                                    onEdit={() => onEditEntry?.(section.id, topic.id)}
+                                    onDuplicate={() => onDuplicateTopic?.(section.id, topic.id)} duplicateDisabled={section.topics.length >= 4}
+                                    onRemove={topicId => onRemoveTopic(section.id, topicId)}
+                                    dragLabel={`${topic.topicName} from ${sectionLabel}`}
+                                    onDragStart={event => handleDragStart(event, { kind: 'topic', sectionId: section.id, topicId: topic.id })}
+                                    onDrop={event => handleTopicDrop(event, section.id, topic.id)} />)}
+                            </div>
+                        </ItemPanel>}
+                    </Fragment>
                 );
             })}
             <div className="grid grid-cols-2 gap-xs">
-                <Button type="button" variant="secondary" onClick={() => onAddSection('single')}>Add single-topic section</Button>
-                <Button type="button" variant="secondary" onClick={() => onAddSection('mixed')}>Add mixed section</Button>
-                <Button type="button" variant="secondary" onClick={onAddHeader}>Add header</Button>
+                <Button type="button" variant="secondary" aria-label="Add mixed section" title="Add mixed topics" onClick={() => onAddSection('mixed')}><Layers aria-hidden="true" size={20} /><Plus aria-hidden="true" size={14} /></Button>
+                <Button type="button" variant="secondary" aria-label="Add header" title="Add header" onClick={onAddHeader}><Heading aria-hidden="true" size={20} /><Plus aria-hidden="true" size={14} /></Button>
             </div>
         </div>
     );

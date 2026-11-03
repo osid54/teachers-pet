@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import Input from '../ui/Input';
 import SaveTemplateForm from './SaveTemplateForm';
 import Sidebar from './Sidebar';
+import TopicCustomizeModal from './TopicCustomizeModal';
 
 afterEach(cleanup);
 
@@ -52,6 +53,37 @@ const topics = [{ id: 'one', subject: 'Arithmetic', topicId: 'addition', topicNa
 const section = { id: 'section-1', mode: 'single', topics, pageCount: 1, problemsPerPage: 10 };
 
 describe('template saving', () => {
+    it('offers the three compact answer-key choices with their original request values', () => {
+        const onChange = vi.fn();
+        render(<Sidebar sections={[section]} answerKeyMode="none" onAnswerKeyModeChange={onChange} />);
+        expect(screen.getByRole('button', { name: 'None', exact: true }).getAttribute('aria-pressed')).toBe('true');
+        fireEvent.click(screen.getByRole('button', { name: 'Inline', exact: true }));
+        expect(onChange).toHaveBeenLastCalledWith('inline');
+        fireEvent.click(screen.getByRole('button', { name: 'After', exact: true }));
+        expect(onChange).toHaveBeenLastCalledWith('separate');
+    });
+    it('edits an existing topic without offering a destination and respects parent-owned modifiers', () => {
+        const onConfirm = vi.fn();
+        render(<TopicCustomizeModal topic={topics[0]} subject="Arithmetic" sections={[section]}
+            initialSectionId={section.id} customize editing sharedModifiers={topics[0].modifiers}
+            onConfirm={onConfirm} onClose={vi.fn()} />);
+        expect(screen.queryByLabelText('Add to section')).toBeNull();
+        expect(screen.getByLabelText('Integer-part digits').disabled).toBe(true);
+        fireEvent.change(screen.getByLabelText('Topic name'), { target: { value: 'Warm-up' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+        expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ id: topics[0].id, topicName: 'Warm-up' }), section.id);
+    });
+    it('does not save shared operation-specific values as a new child override', () => {
+        const onConfirm = vi.fn();
+        const parent = { ...section, mode: 'mixed', shareModifiers: true,
+            sharedModifiers: { ...topics[0].modifiers, allow_negative_answers: true, digits: 4 } };
+        render(<TopicCustomizeModal topic={{ id: 'addition', name: 'Addition' }} subject="Arithmetic"
+            sections={[parent]} initialSectionId={parent.id} customize onConfirm={onConfirm} onClose={vi.fn()} />);
+        fireEvent.click(screen.getByRole('button', { name: 'Add topic' }));
+        expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({
+            modifiers: expect.objectContaining({ allow_negative_answers: false, digits: 2 }),
+        }), parent.id);
+    });
     it('includes sections, workflow, and answer-key mode in the saved payload', () => {
         const onSubmit = vi.fn();
         render(<SaveTemplateForm sections={[section]} workflowMode="accordion" answerKeyMode="separate" onSubmit={onSubmit} />);

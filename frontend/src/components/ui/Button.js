@@ -2,11 +2,14 @@
 
 
 const variantStyles = {
-    primary: 'bg-main-600 text-main-100 enabled:hover:bg-[hsl(0_8%_35%)]',
-    secondary: 'bg-main-500 text-main-100 enabled:hover:bg-[hsl(0_10%_61%)]',
-    accent: 'bg-main-300 text-main-100 enabled:hover:bg-[hsl(0_12%_79%)]',
-    danger: 'bg-main-800 text-main-100 enabled:hover:bg-[hsl(0_10%_13%)]',
-    order: 'bg-main-200 text-main-500 border border-main-300 rounded-sm py-xs enabled:hover:bg-main-300',
+  primary: "bg-main-600 text-main-100 enabled:hover:bg-[hsl(0_8%_35%)]",
+  secondary: "bg-main-500 text-main-100 enabled:hover:bg-[hsl(0_10%_61%)]",
+  ghost:
+    "bg-transparent enabled:hover:bg-main-200/40 text-main-400 enabled:hover:text-main-600",
+  accent: "bg-main-300 text-main-100 enabled:hover:bg-[hsl(0_12%_79%)]",
+  danger: "bg-main-800 text-main-100 enabled:hover:bg-[hsl(0_10%_13%)]",
+  order:
+    "bg-main-200 text-main-500 border border-main-300 rounded-sm py-xs enabled:hover:bg-main-300",
 };
 
 export default function Button({
