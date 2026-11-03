@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'howToUseSectionOpen';
 
@@ -35,9 +36,10 @@ export default function HowToUse() {
                 <Button
                     onClick={() => setIsOpen(!isOpen)}
                     variant="primary"
+                    aria-label="Toggle help" title="Toggle help" aria-expanded={isOpen}
                     className="mx-2 min-[769px]:mx-4"
                 >
-                    {isOpen ? '▲' : '▼'}
+                    {isOpen ? <ChevronUp aria-hidden="true" size={20} /> : <ChevronDown aria-hidden="true" size={20} />}
                 </Button>
             </div>
 

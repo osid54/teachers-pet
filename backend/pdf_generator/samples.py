@@ -4,47 +4,54 @@ import random
 from pathlib import Path
 
 from pdf_generator.main import create_pdf_worksheet
-from problem_generator.operations import generate_arithmetic_problems
+from problem_generator.worksheet import generate_section_problems
+from schemas import TopicModifiers, TopicSelection, WorksheetSection
 
 
 def generate_samples(output_directory):
     output_directory = Path(output_directory)
     output_directory.mkdir(parents=True, exist_ok=True)
+    basic = TopicModifiers(digits=2)
     scenarios = [
-        ("addition-10", [("Addition", ["addition"], 1, 10, {})], False),
-        ("dense-50-with-answers", [("Addition", ["addition"], 2, 50,
-          {"problem": {"digits": 5}})], True),
-        ("decimals-negatives", [("Decimal Subtraction", ["subtraction"], 1, 10,
-          {"problem": {"digits": 5, "dec": 5, "neg": 4}, "answer": {"round": 5}})], True),
-        ("mixed-operations", [("Mixed Problems", ["addition", "subtraction", "multiplication", "division"], 2, 15,
-          {"problem": {"digits": 2}, "answer": {"round": 3}})], True),
+        ("addition-10", [WorksheetSection(mode="single", topics=[TopicSelection(topic_id="addition", modifiers=basic)],
+            page_count=1, problems_per_page=10)], "none"),
+        ("dense-50-with-answers", [WorksheetSection(mode="single", topics=[TopicSelection(topic_id="addition",
+            modifiers=TopicModifiers(digits=5))], page_count=2, problems_per_page=50)], "separate"),
+        ("decimals-negatives", [WorksheetSection(mode="single", topics=[TopicSelection(topic_id="subtraction",
+            modifiers=TopicModifiers(digits=5, digit_mode="strict", decimal_places=5,
+                negative_probability=0.25, allow_negative_answers=True, answer_rounding=5))],
+            page_count=1, problems_per_page=10)], "inline"),
+        ("mixed-operations", [WorksheetSection(mode="mixed", topics=[
+            TopicSelection(topic_id=topic, modifiers=basic) for topic in
+            ("addition", "subtraction", "multiplication", "division")],
+            page_count=2, problems_per_page=15)], "separate"),
         ("multiple-sections", [
-            ("Multiplication", ["multiplication"], 1, 6, {"problem": {"digits": 2}}),
-            ("Division", ["division"], 1, 6, {"problem": {"digits": 2}, "answer": {"round": 2}}),
-        ], True),
+            WorksheetSection(mode="single", topics=[TopicSelection(topic_id="multiplication", modifiers=basic)],
+                page_count=1, problems_per_page=6),
+            WorksheetSection(mode="single", topics=[TopicSelection(topic_id="division",
+                modifiers=TopicModifiers(digits=2, division_mode="decimal", answer_rounding=2))],
+                page_count=1, problems_per_page=6),
+        ], "separate"),
     ]
     manifest = []
-    random_state = random.getstate()
-    try:
-        random.seed(54)
-        for name, sections, include_answers in scenarios:
-            data = []
-            expected_worksheet_pages = 0
-            total_problems = 0
-            for title, topics, page_count, per_page, modifiers in sections:
-                data.append({"type": "section_header", "subject": "Arithmetic", "topic_name": title,
-                             "page_count": page_count, "problems_per_page": per_page})
-                data.extend(problem.to_dict() for problem in generate_arithmetic_problems(
-                    topics, page_count * per_page, modifiers))
-                expected_worksheet_pages += page_count
-                total_problems += page_count * per_page
-            filename = f"{name}.pdf"
-            (output_directory / filename).write_bytes(create_pdf_worksheet(data, include_answers).getvalue())
-            manifest.append({"file": filename, "worksheet_pages": expected_worksheet_pages,
-                             "expected_total_pages": expected_worksheet_pages + int(include_answers),
-                             "problem_count": total_problems, "answer_key": include_answers})
-    finally:
-        random.setstate(random_state)
+    for name, sections, answer_key_mode in scenarios:
+        data = []
+        expected_worksheet_pages = 0
+        total_problems = 0
+        rng = random.Random(54)
+        for section_index, section in enumerate(sections, start=1):
+            pages = generate_section_problems(section, rng)
+            data.append({"section_number": section_index, "mode": section.mode,
+                "topics": [topic.model_dump() for topic in section.topics],
+                "page_count": section.page_count, "problems_per_page": section.problems_per_page,
+                "pages": [[problem.to_dict() for problem in page] for page in pages]})
+            expected_worksheet_pages += section.page_count
+            total_problems += section.page_count * section.problems_per_page
+        filename = f"{name}.pdf"
+        (output_directory / filename).write_bytes(create_pdf_worksheet(data, answer_key_mode).getvalue())
+        manifest.append({"file": filename, "worksheet_pages": expected_worksheet_pages,
+            "expected_total_pages": expected_worksheet_pages + int(answer_key_mode == "separate"),
+            "problem_count": total_problems, "answer_key_mode": answer_key_mode})
 
     (output_directory / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     (output_directory / "README.txt").write_text(

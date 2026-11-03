@@ -5,14 +5,14 @@ import { Input, Checkbox, Button } from '@/components/ui';
 import { PREDEFINED_TAGS } from '@/lib/constants';
 
 export default function SaveTemplateForm({
-    currentSelectedTopics,
-    currentUniformSettings,
+    sections,
+    workflowMode = 'accordion',
+    answerKeyMode,
     onSubmit,
     onClose,
     initialTemplateData,
     isSaving = false,
     saveError = null,
-    mode,
 }) {
     const [name, setName] = useState(initialTemplateData?.name || '');
     const [description, setDescription] = useState(initialTemplateData?.description || '');
@@ -20,6 +20,7 @@ export default function SaveTemplateForm({
     const [tags, setTags] = useState(initialTemplateData?.tags || []);
 
     const [error, setError] = useState(null);
+    const topicSections = sections.filter(section => section.mode !== 'header');
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -28,16 +29,21 @@ export default function SaveTemplateForm({
             setError('Template name cannot be blank.');
             return;
         }
-        if (currentSelectedTopics.length === 0) {
-            const msg = "Please select at least one topic to save a template.";
+        if (!topicSections.length || topicSections.some(section => !section.topics.length ||
+            (section.mode === 'mixed' && section.topics.length < 2)) || sections.at(-1)?.mode === 'header') {
+            const msg = "Add topics to each section and keep headers before a topic section.";
             setError(msg);
+            return;
+        }
+        if (sections.some(section => section.mode === 'header' && !section.title.trim())) {
+            setError('Every header needs a title.');
             return;
         }
 
         const templateSettings = {
-            selectedTopicInstances: currentSelectedTopics,
-            uniformSettings: currentUniformSettings,
-            topicSelectionMode: mode,
+            sections,
+            workflowMode,
+            answerKeyMode,
         };
 
         const templateToSave = {
@@ -74,7 +80,9 @@ export default function SaveTemplateForm({
                 {(error || saveError) && <p className="text-main-400 text-sm mb-md">{error || saveError}</p>}
 
                 <div className="flex gap-md justify-center mt-lg">
-                    <Button type="submit" isLoading={isSaving} disabled={isSaving || currentSelectedTopics.length === 0} variant="primary">
+                    <Button type="submit" isLoading={isSaving} disabled={isSaving || !topicSections.length ||
+                        topicSections.some(section => !section.topics.length || (section.mode === 'mixed' && section.topics.length < 2)) ||
+                        sections.at(-1)?.mode === 'header' || sections.some(section => section.mode === 'header' && !section.title.trim())} variant="primary">
                         {initialTemplateData ? 'Update Template' : 'Save Template'}
                     </Button>
                     <Button onClick={onClose} variant="secondary" disabled={isSaving}>Cancel</Button>

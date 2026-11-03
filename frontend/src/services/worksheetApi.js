@@ -31,15 +31,6 @@ export const fetchBackendStatus = async () => {
   }
 };
 
-export const fetchProblemsList = async (requestData) => {
-  try {
-    const response = await api.post('/get-problems', requestData);
-    return response.data;
-  } catch (error) {
-    throw await apiError(error, 'Failed to fetch problems due to network or server error.');
-  }
-};
-
 export const generateWorksheetPDF = async (generationRequests) => {
   try {
     const response = await api.post('/generate-worksheet', generationRequests, {
