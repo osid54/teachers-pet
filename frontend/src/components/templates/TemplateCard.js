@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { Button } from '@/components/ui';
+import { Bookmark, ThumbsUp } from 'lucide-react';
 
 export default function TemplateCard({
     template,
@@ -13,6 +15,8 @@ export default function TemplateCard({
     isLoggedIn,
     activeTab,
 }) {
+    const [liking, setLiking] = useState(false);
+    const [favoriting, setFavoriting] = useState(false);
     const handleUseClick = () => {
         onUse(template);
     };
@@ -21,10 +25,10 @@ export default function TemplateCard({
         onEdit(template.id);
     };
 
-    const handleLikeClick = () => {
-        if (onLike) {
-            onLike(template.id);
-        }
+    const handleLikeClick = async () => {
+        if (!onLike || liking) return;
+        setLiking(true);
+        try { await onLike(template.id); } finally { setLiking(false); }
     };
 
     const handleDeleteClick = () => {
@@ -33,10 +37,10 @@ export default function TemplateCard({
         }
     };
 
-    const handleFavoriteClick = () => {
-        if (onFavorite) {
-            onFavorite(template.id);
-        }
+    const handleFavoriteClick = async () => {
+        if (!onFavorite || favoriting) return;
+        setFavoriting(true);
+        try { await onFavorite(template.id); } finally { setFavoriting(false); }
     };
 
     return (
@@ -88,16 +92,14 @@ export default function TemplateCard({
 
                 {isLoggedIn && activeTab !== 'my' && (
                     <div className="flex gap-sm w-full">
-                        <Button onClick={handleLikeClick} aria-label={`Like ${template.name}`} variant="primary" className="flex-grow py-1">
-                            <svg className="w-6 h-6 mx-auto" fill="none" viewBox="0 0 24 24">
-                                <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10a1 1 0 0 1 1-1h3v12H4a1 1 0 0 1-1-1zM7 11v8l1.992 1.328a4 4 0 0 0 2.22.672h5.247a3 3 0 0 0 2.959-2.507l1.194-7.164A2 2 0 0 0 18.639 9H14" />
-                                <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m14 9 .687-3.436a1.81 1.81 0 0 0-1.2-2.068v0a1.81 1.81 0 0 0-2.188.906L8 11H7" />
-                            </svg>
+                        <Button onClick={handleLikeClick} aria-label={`Like ${template.name}`} title="Like template"
+                            disabled={liking} aria-busy={liking} aria-pressed={Boolean(template.is_liked)} variant="primary" className="flex-grow py-1">
+                            <ThumbsUp aria-hidden="true" className="w-6 h-6 mx-auto" fill={template.is_liked ? 'currentColor' : 'none'} />
                         </Button>
-                        <Button onClick={handleFavoriteClick} aria-label={`Favorite ${template.name}`} variant="primary" className="flex-grow py-1">
-                            <svg className="w-6 h-6 mx-auto" fill="none" viewBox="0 0 24 24">
-                                <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 7.2c0-1.12 0-1.68.218-2.108a2 2 0 0 1 .874-.874C8.52 4 9.08 4 10.2 4h3.6c1.12 0 1.68 0 2.108.218a2 2 0 0 1 .874.874C17 5.52 17 6.08 17 7.2V20l-2.874-2.555c-.752-.668-1.128-1.003-1.553-1.13a2 2 0 0 0-1.146 0c-.425.127-.8.462-1.553 1.13L7 20z" />
-                            </svg>
+                        <Button onClick={handleFavoriteClick} aria-label={`Favorite ${template.name}`} title="Bookmark template"
+                            disabled={favoriting} aria-busy={favoriting} aria-pressed={Boolean(template.is_favorited ?? activeTab === 'saved')} variant="primary" className="flex-grow py-1">
+                            <Bookmark aria-hidden="true" className="w-6 h-6 mx-auto"
+                                fill={(template.is_favorited ?? activeTab === 'saved') ? 'currentColor' : 'none'} />
                         </Button>
                     </div>
                 )}

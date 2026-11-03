@@ -7,6 +7,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import TemplateListGrid from '@/components/templates/TemplateListGrid';
 import { PREDEFINED_TAGS } from '@/lib/constants';
+import { ArrowDown, ArrowUp } from 'lucide-react';
 
 export default function TemplatesPage() {
     const {
@@ -121,15 +122,8 @@ export default function TemplatesPage() {
         try {
             const response = await authApi.post(`/templates/${templateId}/like`);
             toast.success(response.data.message);
-            if (activeTab === 'public') {
-                setPublicTemplates(prev => prev.map(t =>
-                    t.id === templateId ? { ...t, likes_count: response.data.likes_count } : t
-                ));
-            } else if (activeTab === 'my') {
-                setPublicTemplates(prev => prev.map(t =>
-                    t.id === templateId ? { ...t, likes_count: response.data.likes_count } : t
-                ));
-            }
+            setPublicTemplates(prev => prev.map(template => template.id === templateId
+                ? { ...template, likes_count: response.data.likes_count, is_liked: !template.is_liked } : template));
         } catch (err) {
             console.error("Failed to like template:", err.response?.data || err.message);
             const msg = err.response?.data?.detail || "Failed to like template.";
@@ -145,6 +139,8 @@ export default function TemplatesPage() {
         try {
             const response = await authApi.post(`/templates/${templateId}/favorite`);
             toast.success(response.data.message);
+            setPublicTemplates(prev => prev.map(template => template.id === templateId
+                ? { ...template, is_favorited: !(template.is_favorited ?? activeTab === 'saved') } : template));
             if (activeTab === 'saved') {
                 fetchTemplates();
             }
@@ -314,7 +310,7 @@ export default function TemplatesPage() {
                                     <option value="likes_count">Likes</option>
                                 </select>
                                 <Button onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')} variant="order">
-                                    {sortOrder === 'asc' ? '▲' : '▼'}
+                                    {sortOrder === 'asc' ? <ArrowUp aria-hidden="true" size={20} /> : <ArrowDown aria-hidden="true" size={20} />}
                                 </Button>
                             </div>
                         </div>

@@ -1,6 +1,6 @@
-from typing import Literal, Optional, Union
+from typing import Annotated, Literal, Optional, Union
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 ArithmeticTopic = Literal["addition", "subtraction", "multiplication", "division"]
@@ -30,7 +30,19 @@ class TopicModifiers(BaseModel):
 
 class TopicSelection(BaseModel):
     topic_id: ArithmeticTopic
+    topic_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    description: Optional[str] = Field(None, max_length=500)
     modifiers: TopicModifiers = Field(default_factory=TopicModifiers)
+
+    @field_validator("topic_name")
+    @classmethod
+    def validate_topic_name(cls, topic_name):
+        if topic_name is None:
+            return None
+        topic_name = topic_name.strip()
+        if not topic_name:
+            raise ValueError("Topic name cannot be blank.")
+        return topic_name
 
 
 class WorksheetSection(BaseModel):
@@ -51,14 +63,37 @@ class WorksheetSection(BaseModel):
         return self
 
 
+class WorksheetHeader(BaseModel):
+    mode: Literal["header"]
+    title: str = Field(..., min_length=1, max_length=100)
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, title):
+        title = title.strip()
+        if not title:
+            raise ValueError("Header title cannot be blank.")
+        return title
+
+
+WorksheetItem = Annotated[Union[WorksheetSection, WorksheetHeader], Field(discriminator="mode")]
+
+
 class WorksheetRequest(BaseModel):
-    sections: list[WorksheetSection] = Field(..., min_length=1, max_length=20)
+    sections: list[WorksheetItem] = Field(..., min_length=1, max_length=40)
     answer_key_mode: AnswerKeyMode = "none"
     seed: Optional[int] = Field(None, ge=0, le=4_294_967_295)
 
     @model_validator(mode="after")
     def validate_total_problem_count(self):
-        total = sum(section.page_count * section.problems_per_page for section in self.sections)
+        worksheet_sections = [item for item in self.sections if isinstance(item, WorksheetSection)]
+        if not worksheet_sections:
+            raise ValueError("A worksheet must contain at least one topic section.")
+        if isinstance(self.sections[-1], WorksheetHeader):
+            raise ValueError("A header must be followed by a topic section.")
+        if len(worksheet_sections) > 20:
+            raise ValueError("A worksheet can contain at most 20 topic sections.")
+        total = sum(section.page_count * section.problems_per_page for section in worksheet_sections)
         if total > 10_000:
             raise ValueError("A worksheet can contain at most 10,000 problems.")
         return self

@@ -95,6 +95,19 @@ class DatabaseWorkflowTests(unittest.IsolatedAsyncioTestCase):
         saved = await self.client.get("/templates/saved", headers=other, params={"tags": "Arithmetic"})
         self.assertEqual(saved.status_code, 200, saved.text)
         self.assertEqual([item["id"] for item in saved.json()], [template_id])
+        self.assertTrue(saved.json()[0]["is_liked"])
+        self.assertTrue(saved.json()[0]["is_favorited"])
+        public = await self.client.get("/templates/public", headers=other)
+        self.assertTrue(public.json()[0]["is_liked"])
+        self.assertTrue(public.json()[0]["is_favorited"])
+        anonymous = await self.client.get("/templates/public")
+        self.assertFalse(anonymous.json()[0]["is_liked"])
+        self.assertFalse(anonymous.json()[0]["is_favorited"])
+        await self.client.post(f"/templates/{template_id}/like", headers=other)
+        await self.client.post(f"/templates/{template_id}/favorite", headers=other)
+        public = await self.client.get("/templates/public", headers=other)
+        self.assertFalse(public.json()[0]["is_liked"])
+        self.assertFalse(public.json()[0]["is_favorited"])
         self.assertEqual((await self.client.delete(f"/templates/{template_id}", headers=owner)).status_code, 204)
         saved = await self.client.get("/templates/saved", headers=other)
         self.assertEqual(saved.json(), [])
@@ -123,10 +136,11 @@ class DatabaseWorkflowTests(unittest.IsolatedAsyncioTestCase):
             "answer_key_mode": "inline",
             "sections": [
                 {"mode": "single", "page_count": 1, "problems_per_page": 2,
-                 "topics": [{"topic_id": "addition", "modifiers": {
+                 "topics": [{"topic_id": "addition", "topic_name": "Warm-up sums", "description": "Custom practice", "modifiers": {
                      "digits": 3, "digit_mode": "strict", "decimal_places": 2,
                      "negative_probability": 0, "answer_rounding": 2,
                  }}]},
+                {"mode": "header", "title": "Mixed practice"},
                 {"mode": "mixed", "page_count": 1, "problems_per_page": 3,
                  "topics": [
                     {"topic_id": "addition", "modifiers": {}},

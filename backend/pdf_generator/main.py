@@ -61,12 +61,18 @@ def create_pdf_worksheet(sections, answer_key_mode):
     problem_counter = 0
     problems_per_row = 5
     has_rendered_page = False
+    pending_headers = []
 
     for section in sections:
+        if section.get("mode") == "header":
+            pending_headers.append(section.get("title", ""))
+            continue
+
         page_count = section.get("page_count", 1)
         problems_per_page = section.get("problems_per_page", 10)
         pages = section.get("pages", [])
-        topic_names = ", ".join(topic.get("topic_id", "").title() for topic in section.get("topics", []))
+        topic_names = ", ".join(topic.get("topic_name") or topic.get("topic_id", "").title()
+            for topic in section.get("topics", []))
         section_title = "Mixed: " + topic_names if section.get("mode") == "mixed" else topic_names
 
         for page_index in range(page_count):
@@ -74,8 +80,12 @@ def create_pdf_worksheet(sections, answer_key_mode):
                 story.append(PageBreak())
             has_rendered_page = True
 
+            for title in pending_headers:
+                story.append(Paragraph(title, styles['h1']))
+            pending_headers = []
+
             section_number = section.get("section_number", 1)
-            story.append(Paragraph(f"Section {section_number}: {section_title} (Page {page_index + 1} of {page_count})", styles['h1']))
+            story.append(Paragraph(f"Section {section_number}: {section_title} (Page {page_index + 1} of {page_count})", styles['h2']))
             story.append(Spacer(1, 0.2 * inch))
 
             page_problems = pages[page_index] if page_index < len(pages) else []

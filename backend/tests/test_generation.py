@@ -10,13 +10,41 @@ os.environ["SECRET_KEY"] = "test-only-secret-key"
 
 from pydantic import ValidationError
 
-from schemas import TopicModifiers, TopicSelection, WorksheetRequest, WorksheetSection
+from schemas import TopicModifiers, TopicSelection, WorksheetHeader, WorksheetRequest, WorksheetSection
 from pdf_generator.main import create_pdf_worksheet
 from pdf_generator.samples import generate_samples
 from problem_generator.worksheet import generate_section_problems, generate_topic_problems
 
 
 class WorksheetSchemaTests(unittest.TestCase):
+    def test_accepts_custom_topic_display_metadata(self):
+        request = WorksheetRequest.model_validate({"sections": [{"mode": "single", "topics": [{
+            "topic_id": "addition", "topic_name": "Warm-up", "description": "Custom description",
+        }]}]})
+        topic = request.sections[0].topics[0]
+        self.assertEqual(topic.topic_name, "Warm-up")
+        self.assertEqual(topic.description, "Custom description")
+
+    def test_preserves_header_order_between_topic_sections(self):
+        request = WorksheetRequest.model_validate({
+            "sections": [
+                {"mode": "single", "topics": [{"topic_id": "addition"}]},
+                {"mode": "header", "title": "Fractions and decimals"},
+                {"mode": "mixed", "topics": [
+                    {"topic_id": "addition"}, {"topic_id": "subtraction"},
+                ]},
+            ],
+        })
+        self.assertIsInstance(request.sections[1], WorksheetHeader)
+        self.assertEqual(request.sections[1].title, "Fractions and decimals")
+
+    def test_rejects_headers_without_a_following_topic_section(self):
+        with self.assertRaises(ValidationError):
+            WorksheetRequest.model_validate({"sections": [
+                {"mode": "single", "topics": [{"topic_id": "addition"}]},
+                {"mode": "header", "title": "End marker"},
+            ]})
+
     def test_accepts_ordered_single_and_mixed_sections(self):
         request = WorksheetRequest.model_validate({
             "answer_key_mode": "inline",
@@ -133,6 +161,16 @@ class PdfPaginationTests(unittest.TestCase):
         page_count = len(re.findall(rb"/Type\s*/Page\b", pdf))
 
         self.assertEqual(page_count, 2)
+
+    def test_header_before_a_section_does_not_add_a_page(self):
+        sections = [
+            {"mode": "header", "title": "Number sense"},
+            {"mode": "single", "section_number": 1, "topics": [{"topic_id": "addition"}],
+                "page_count": 1, "problems_per_page": 1,
+                "pages": [[{"question": "1 + 1 =", "answer": 2, "num1": 1, "num2": 1, "symbol": "+"}]]},
+        ]
+        pdf = create_pdf_worksheet(sections, "none").getvalue()
+        self.assertEqual(len(re.findall(rb"/Type\s*/Page\b", pdf)), 1)
 
     def test_answer_key_modes_preserve_worksheet_pages(self):
         section = {"mode": "single", "topics": [{"topic_id": "addition"}], "page_count": 1,
