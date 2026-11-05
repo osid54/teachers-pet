@@ -5,6 +5,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 import io
+from xml.sax.saxutils import escape
 
 def create_pdf_worksheet(sections, answer_key_mode):
     buffer = io.BytesIO()
@@ -13,6 +14,15 @@ def create_pdf_worksheet(sections, answer_key_mode):
                             topMargin=1.2*inch, bottomMargin=0.75*inch)
     styles = getSampleStyleSheet()
     story = []
+
+    def add_instructions(value, label=None):
+        if not value or not value.strip():
+            return
+        text = escape(value.strip()).replace("\n", "<br/>")
+        if label:
+            text = f"<b>{escape(label)}:</b> {text}"
+        story.append(Paragraph(text, styles['Normal']))
+        story.append(Spacer(1, 0.06 * inch))
 
     all_problems_for_answer_key = []
     def my_header_footer(canvas, doc):
@@ -65,7 +75,7 @@ def create_pdf_worksheet(sections, answer_key_mode):
 
     for section in sections:
         if section.get("mode") == "header":
-            pending_headers.append(section.get("title", ""))
+            pending_headers.append(section)
             continue
 
         page_count = section.get("page_count", 1)
@@ -80,12 +90,17 @@ def create_pdf_worksheet(sections, answer_key_mode):
                 story.append(PageBreak())
             has_rendered_page = True
 
-            for title in pending_headers:
-                story.append(Paragraph(title, styles['h1']))
+            for header in pending_headers:
+                story.append(Paragraph(escape(header.get("title", "")), styles['h1']))
+                add_instructions(header.get("instructions", ""))
             pending_headers = []
 
             section_number = section.get("section_number", 1)
-            story.append(Paragraph(f"Section {section_number}: {section_title} (Page {page_index + 1} of {page_count})", styles['h2']))
+            story.append(Paragraph(f"Section {section_number}: {escape(section_title)} (Page {page_index + 1} of {page_count})", styles['h2']))
+            add_instructions(section.get("instructions", ""))
+            for topic in section.get("topics", []):
+                label = (topic.get("topic_name") or topic.get("topic_id", "").title()) if section.get("mode") == "mixed" else None
+                add_instructions(topic.get("instructions", ""), label)
             story.append(Spacer(1, 0.2 * inch))
 
             page_problems = pages[page_index] if page_index < len(pages) else []

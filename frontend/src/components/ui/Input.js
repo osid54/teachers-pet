@@ -63,18 +63,19 @@ export default function Input({
         onBlur?.(event);
     };
 
-    const containerClasses = `w-full flex items-center gap-sm ${labelPosition === 'top' ? 'flex-col justify-center gap-xxs' : ''} ${className}`;
-    const labelClasses = `text-sm text-main-500 font-medium text-center ${labelPosition === 'top' ? 'w-[80%] block mb-0' : type === 'number' ? 'w-1/2 shrink-0' : 'min-[769px]:w-auto max-[768px]:w-[30%]'}`;
+    const stacked = labelPosition === 'top';
+    const containerClasses = `w-full flex ${stacked ? 'flex-col items-stretch gap-xxs' : 'items-center gap-sm'} ${className}`;
+    const labelClasses = `text-sm text-main-600 font-medium ${stacked ? 'block text-left' : `text-center ${type === 'number' ? 'w-1/2 shrink-0' : 'min-[769px]:w-auto max-[768px]:w-[30%]'}`}`;
     const inputClasses = `border border-main-300 rounded-sm text-base text-main-600 bg-main-200 px-md py-sm transition-all
                         focus:outline-none focus:border-main-500 focus:ring-1 focus:ring-main-300 
                         disabled:bg-main-300 disabled:cursor-not-allowed disabled:opacity-80
                         placeholder:text-main-500 placeholder:opacity-70 
-                        ${type === 'number' ? 'w-16' : 'w-full'}`;
+                        ${type === 'number' && !stacked ? 'w-16' : 'w-full min-w-0'}`;
 
     return (
         <div className={containerClasses}>
             {label && <label htmlFor={inputId} className={labelClasses}>{label}</label>}
-            <div className="w-1/2 flex items-center justify-center">
+            <div className={`${stacked ? 'w-full' : 'w-1/2'} flex items-center justify-center`}>
                 <input
                     id={inputId}
                     type={type}
