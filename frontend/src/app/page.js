@@ -9,6 +9,7 @@ import { useGenerateWorksheet } from '@/hooks/useGenerateWorksheet';
 import { supportedCurriculumData } from '@/lib/curriculum';
 import { buildWorksheetRequest, normalizeWorksheetSettings } from '@/lib/worksheetSettings';
 import { topicSurface, transitionTopic } from '@/lib/topicTransition';
+import { apiErrorMessage } from '@/lib/apiErrors';
 import { duplicateWorksheetEntry, duplicateWorksheetTopic, moveWorksheetTopic, promoteWorksheetTopic, reorderWorksheetEntries, removeWorksheetTopic } from '@/lib/worksheetStructure';
 import { useAuth } from '@/context/AuthContext';
 
@@ -240,7 +241,7 @@ function PageContent() {
       return true;
     } catch (error) {
       console.error("Failed to save template:", error.response?.data || error.message);
-      const msg = error.response?.data?.detail || "Failed to save template.";
+      const msg = apiErrorMessage(error, 'Failed to save template.');
       setSaveTemplateError(msg);
       toast.error(msg);
       return false;

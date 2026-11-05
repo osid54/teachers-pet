@@ -12,6 +12,8 @@ import Slider from '../ui/Slider';
 
 afterEach(cleanup);
 
+vi.mock('@/services/worksheetApi', () => ({ fetchTemplateTags: vi.fn(async () => ['Arithmetic', 'Backend-only tag']) }));
+
 describe('worksheet settings', () => {
     it.each([2, 3])('evenly spaces %i sidebar controls while keeping icons close to their fields', count => {
         const view = render(<UniformSettingsForm settings={{ pageCount: 1, problemsPerPage: 10 }} onChange={vi.fn()}>

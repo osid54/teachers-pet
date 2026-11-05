@@ -36,6 +36,7 @@ vi.mock('@/context/AuthContext', () => ({ useAuth: () => ({
 vi.mock('@/hooks/useBackendStatus', () => ({ useBackendStatus: () => ({}) }));
 vi.mock('@/services/worksheetApi', () => ({
     generateWorksheetPDF: mocks.generate,
+    fetchTemplateTags: vi.fn(async () => ['Arithmetic', 'Backend-only tag']),
 }));
 
 const topics = [{ id: 'one', subject: 'Arithmetic', topicId: 'addition', topicName: 'Addition',
@@ -63,6 +64,15 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('worksheet workflow integration', () => {
+    it('shows backend template validation details as readable save errors', async () => {
+        mocks.api.post.mockRejectedValueOnce({ response: { data: { detail: [{ msg: 'Unknown template tag.' }] } } });
+        render(<MemoryRouter><HomePage /></MemoryRouter>);
+        fireEvent.click(await screen.findByRole('button', { name: 'Quick add Addition' }));
+        fireEvent.click(screen.getByRole('button', { name: 'Save template' }));
+        fireEvent.change(screen.getByLabelText('Template Name'), { target: { value: 'Practice' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save Template', exact: true }));
+        expect((await screen.findByRole('alert')).textContent).toBe('Unknown template tag.');
+    });
     it.each([
         ['header', 'Edit header', 'section:heading', 'section-modal', 'Cancel'],
         ['mixed', 'Edit mixed topics', 'section:group', 'section-modal', 'Save changes'],

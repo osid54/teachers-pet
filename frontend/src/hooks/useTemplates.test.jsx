@@ -42,27 +42,36 @@ describe('template library data', () => {
         expect(view.api.get.mock.calls[0][1].signal.aborted).toBe(true);
     });
 
-    it('paginates owned templates locally and uses the same page size', async () => {
-        const view = setup(async () => ({ data: Array.from({ length: 12 }, (_, index) => record(index)) }));
-        act(() => view.result.current.setFilters({ tab: 'my' }));
+    it('requests owned-template filtering, sorting, and pagination from the backend', async () => {
+        const view = setup(async (_path, config) => ({ data: config.params.skip === 10
+            ? [record(11), record(12)] : Array.from({ length: 11 }, (_, index) => record(index)) }));
+        act(() => view.result.current.setFilters({ tab: 'my', tags: ['Arithmetic', 'Easy'],
+            sortBy: 'likes_count', sortOrder: 'asc', search: 'practice' }));
         await waitFor(() => expect(view.result.current.templates).toHaveLength(10));
         expect(view.result.current.hasNext).toBe(true);
+        expect(view.api.get.mock.calls.at(-1)).toEqual(['/templates/me', expect.objectContaining({
+            params: { skip: 0, limit: 11, q: 'practice', tags: ['Arithmetic', 'Easy'],
+                sort_by: 'likes_count', sort_order: 'asc' }, paramsSerializer: { indexes: null },
+        })]);
         act(() => view.result.current.setPage(1));
         await waitFor(() => expect(view.result.current.templates).toHaveLength(2));
         expect(view.result.current.hasNext).toBe(false);
-        expect(view.api.get.mock.calls.filter(([path]) => path === '/templates/me')).toHaveLength(1);
+        expect(view.api.get.mock.calls.at(-1)[1].params.skip).toBe(10);
+        expect(view.api.get.mock.calls.filter(([path]) => path === '/templates/me')).toHaveLength(2);
     });
 
-    it('moves back when the last saved item on a page is removed', async () => {
+    it.each(['saved', 'my'])('moves back when the last item on a %s page is removed', async tab => {
         let removed = false;
         const view = setup(async (_path, config) => ({ data: config.params?.skip === 10
             ? removed ? [] : [record(11)] : Array.from({ length: 11 }, (_, index) => record(index)) }));
         view.api.post.mockImplementation(async () => { removed = true; return { data: {} }; });
-        act(() => view.result.current.setFilters({ tab: 'saved' }));
+        view.api.delete.mockImplementation(async () => { removed = true; return { data: {} }; });
+        act(() => view.result.current.setFilters({ tab }));
         await waitFor(() => expect(view.result.current.hasNext).toBe(true));
         act(() => view.result.current.setPage(1));
         await waitFor(() => expect(view.result.current.templates[0]?.id).toBe(11));
-        await act(async () => view.result.current.favorite(view.result.current.templates[0]));
+        await act(async () => tab === 'saved' ? view.result.current.favorite(view.result.current.templates[0])
+            : view.result.current.remove(view.result.current.templates[0]));
         await waitFor(() => expect(view.result.current.filters.page).toBe(0));
         await waitFor(() => expect(view.result.current.templates).toHaveLength(10));
     });

@@ -173,6 +173,15 @@ If you only want to run the frontend against the hosted API, you do not need a l
             ```
     * This will start both your FastAPI backend and Vite frontend development servers simultaneously.
 
+### Template API Contract
+
+* `GET /templates/tags` is the allowed tag catalog shared by template creation and browsing.
+* Creating a template or updating `settings_json` requires the editor's camelCase settings: an ordered `sections` list, optional `answerKeyMode`, and optional `workflowMode`. Sections use `pageCount` and `problemsPerPage`; topics use `subject`, `topicId`, and optional `modifiers`. This is not the snake_case generation request format.
+* Saves must describe a complete, generatable worksheet. Topic and modifier rules, header ordering, section counts, and the 10,000-problem limit are enforced by the backend. Invalid requests return HTTP 422 without changing the saved record. Defaults are persisted while editor IDs and shared-modifier settings are retained.
+* Historical settings remain readable. Metadata-only updates do not require replacing old settings; replacing settings does require the current contract.
+* `GET /templates/me`, `/templates/public`, and `/templates/saved` share server-side `skip` (default 0), `limit` (default 10, maximum 100), `q`, repeated `tags`, `sort_by` (`created_at` or `likes_count`), and `sort_order` (`asc` or `desc`, default `desc`). Search checks names and descriptions; selected tags must all match. Equal sort values are ordered by template ID in the same direction.
+* Listing responses remain arrays. The frontend requests 11 records to display 10 and determine whether another page exists. `/templates/me` is now bounded by default rather than returning every owned template; deploy the backend before the corresponding frontend pagination change.
+
 ## 5. Deployment
 
 Teacher's Pet is designed for continuous deployment:
