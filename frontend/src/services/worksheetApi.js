@@ -41,3 +41,15 @@ export const generateWorksheetPDF = async (generationRequests) => {
     throw await apiError(error, 'Failed to generate worksheet.');
   }
 };
+
+export const fetchTemplateTags = async () => {
+  try {
+    const response = await api.get('/templates/tags');
+    if (!Array.isArray(response.data) || response.data.some(tag => typeof tag !== 'string' || !tag.trim())) {
+      throw new Error('Invalid template tag catalog.');
+    }
+    return [...new Set(response.data.map(tag => tag.trim()))];
+  } catch (error) {
+    throw await apiError(error, 'Template tags could not be loaded.');
+  }
+};

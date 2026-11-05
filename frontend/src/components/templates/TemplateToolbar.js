@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, Search, SlidersHorizontal, X } from 'lucide-react';
-import { Button, Checkbox } from '@/components/ui';
-import { PREDEFINED_TAGS } from '@/lib/constants';
+import { Button } from '@/components/ui';
+import TemplateTagSelector from './TemplateTagSelector';
 
 export default function TemplateToolbar({ search, onSearchChange, filters, onFiltersChange }) {
     const [showFilters, setShowFilters] = useState(false);
@@ -34,13 +34,9 @@ export default function TemplateToolbar({ search, onSearchChange, filters, onFil
                     <X aria-hidden="true" size={16} />
                 </Button>}
             </div>
-            {showFilters && <fieldset id="template-tag-filters" className="mt-md min-w-0">
-                <legend className="mb-sm text-sm font-medium text-main-600">Tags</legend>
-                <div className="grid grid-cols-2 gap-sm min-[520px]:grid-cols-4">
-                    {PREDEFINED_TAGS.map(tag => <Checkbox key={tag} label={tag} checked={filters.tags.includes(tag)}
-                        onChange={event => onFiltersChange({ tags: event.target.checked ? [...filters.tags, tag] : filters.tags.filter(item => item !== tag) })} />)}
-                </div>
-            </fieldset>}
+            {showFilters && <div id="template-tag-filters" className="mt-md min-w-0">
+                <TemplateTagSelector value={filters.tags} onChange={tags => onFiltersChange({ tags })} />
+            </div>}
         </div>
     );
 }

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Input, Checkbox, Button } from '@/components/ui';
-import { PREDEFINED_TAGS } from '@/lib/constants';
+import TemplateTagSelector from '@/components/templates/TemplateTagSelector';
 
 export default function SaveTemplateForm({
     sections,
@@ -66,18 +66,11 @@ export default function SaveTemplateForm({
                 <Input label="Template Name" name="name" value={name} onChange={(e) => setName(e.target.value)} required maxLength={100} labelPosition="top" />
                 <Input label="Description (Optional)" name="description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={500} labelPosition="top" />
 
-                <div className="mb-md text-right w-full">
-                    <label className="block mb-sm text-sm text-main-600 font-medium text-center">Tags (select all that apply)</label>
-                    <div className="grid grid-cols-[repeat(auto-fit,minmax(100px,1fr))] gap-sm">
-                        {PREDEFINED_TAGS.map(tag => (
-                            <Checkbox key={tag} label={tag} checked={tags.includes(tag)} onChange={(e) => e.target.checked ? setTags([...tags, tag]) : setTags(tags.filter(t => t !== tag))} />
-                        ))}
-                    </div>
-                </div>
+                <TemplateTagSelector label="Tags (optional)" value={tags} onChange={setTags} disabled={isSaving} />
 
                 <Checkbox label="Make Public" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="text-right" />
 
-                {(error || saveError) && <p className="text-main-400 text-sm mb-md">{error || saveError}</p>}
+                {(error || saveError) && <p role="alert" className="text-main-700 text-sm mb-md">{error || saveError}</p>}
 
                 <div className="flex gap-md justify-center mt-lg">
                     <Button type="submit" isLoading={isSaving} disabled={isSaving || !topicSections.length ||
