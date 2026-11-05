@@ -564,7 +564,7 @@ async def generate_worksheet_endpoint(request: WorksheetRequest):
     section_number = 0
     for section in request.sections:
         if isinstance(section, WorksheetHeader):
-            all_problems_data_for_pdf.append({"mode": "header", "title": section.title})
+            all_problems_data_for_pdf.append({"mode": "header", "title": section.title, "instructions": section.instructions})
             continue
         section_number += 1
         pages = await run_in_threadpool(generate_section_problems, section, rng)
@@ -572,6 +572,7 @@ async def generate_worksheet_endpoint(request: WorksheetRequest):
         all_problems_data_for_pdf.append({
             "section_number": section_number,
             "mode": section.mode,
+            "instructions": section.instructions,
             "topics": [topic.model_dump() for topic in section.topics],
             "page_count": section.page_count,
             "problems_per_page": section.problems_per_page,

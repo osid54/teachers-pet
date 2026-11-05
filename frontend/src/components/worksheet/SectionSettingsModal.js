@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Save, X } from 'lucide-react';
+import { Save } from 'lucide-react';
 import { Button, Checkbox, Input } from '@/components/ui';
 import TopicModifierFields, { DEFAULT_TOPIC_MODIFIERS } from './TopicModifierFields';
-import UniformSettingsForm from './UniformSettingsForm';
+import Textarea from '@/components/ui/Textarea';
+import SettingsModal, { SettingsSection } from './SettingsModal';
 
 export default function SectionSettingsModal({ section, onSave, onClose }) {
     const [title, setTitle] = useState(section.title || '');
+    const [instructions, setInstructions] = useState(section.instructions || '');
     const [settings, setSettings] = useState({ pageCount: section.pageCount, problemsPerPage: section.problemsPerPage });
     const [shareModifiers, setShareModifiers] = useState(Boolean(section.shareModifiers));
     const [modifiers, setModifiers] = useState(section.sharedModifiers || section.topics?.[0]?.modifiers || DEFAULT_TOPIC_MODIFIERS);
@@ -14,40 +16,37 @@ export default function SectionSettingsModal({ section, onSave, onClose }) {
     const submit = event => {
         event.preventDefault();
         if (isHeader && !title.trim()) return;
-        onSave(section.id, isHeader ? { title: title.trim() } : {
-            ...settings, shareModifiers, sharedModifiers: shareModifiers ? modifiers : null,
+        onSave(section.id, isHeader ? { title: title.trim(), instructions: instructions.trim() } : {
+            ...settings, instructions: instructions.trim(), shareModifiers, sharedModifiers: shareModifiers ? modifiers : null,
         });
     };
 
     return (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/50 p-md"
-            onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
-            <section role="dialog" aria-modal="true" aria-labelledby="section-modal-title"
-                className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-md bg-main-100 p-lg shadow-xl">
-                <form onSubmit={submit} className="flex flex-col gap-md">
-                    <div className="flex items-center justify-between gap-md">
-                        <h2 id="section-modal-title" className="m-0 text-lg font-bold text-main-700">
-                            {isHeader ? 'Edit header' : 'Mixed topic settings'}
-                        </h2>
-                        <Button variant="ghost" onClick={onClose} aria-label="Close item dialog" title="Close">
-                            <X aria-hidden="true" size={20} />
-                        </Button>
+        <SettingsModal title={isHeader ? 'Edit header' : 'Mixed topic settings'} onSubmit={submit} onClose={onClose} surfaceId="section-modal"
+            actions={<Button type="submit"><Save aria-hidden="true" size={18} /> Save changes</Button>}>
+            <SettingsSection title="Worksheet text">
+                {isHeader && <Input label="Header title" value={title} required maxLength={100} labelPosition="top"
+                    onChange={event => setTitle(event.target.value)} />}
+                <Textarea label="Instructions (optional)" name="instructions" value={instructions} maxLength={500} rows={2}
+                    onChange={event => setInstructions(event.target.value)} />
+            </SettingsSection>
+            {!isHeader && <>
+                <SettingsSection title="Pages and problems">
+                    <div className="grid gap-md min-[520px]:grid-cols-2">
+                        <Input label="Pages" name="pageCount" type="number" min={1} max={50} maxDigits={2}
+                            value={settings.pageCount} labelPosition="top"
+                            onChange={event => setSettings(current => ({ ...current, pageCount: Number(event.target.value) }))} />
+                        <Input label="Problems per page" name="problemsPerPage" type="number" min={1} max={50} maxDigits={2}
+                            value={settings.problemsPerPage} labelPosition="top"
+                            onChange={event => setSettings(current => ({ ...current, problemsPerPage: Number(event.target.value) }))} />
                     </div>
-                    {isHeader ? <Input label="Header title" value={title} required maxLength={100}
-                        onChange={event => setTitle(event.target.value)} /> : <>
-                        <UniformSettingsForm settings={settings} onChange={event => setSettings(current => ({
-                            ...current, [event.target.name]: Number(event.target.value),
-                        }))} />
-                        <Checkbox label="Share modifiers across this section" checked={shareModifiers}
-                            onChange={event => setShareModifiers(event.target.checked)} />
-                        <TopicModifierFields topicId="all" modifiers={modifiers} onChange={setModifiers} disabled={!shareModifiers} />
-                    </>}
-                    <div className="flex justify-end gap-sm">
-                        <Button variant="secondary" onClick={onClose}>Cancel</Button>
-                        <Button type="submit"><Save aria-hidden="true" size={18} /> Save changes</Button>
-                    </div>
-                </form>
-            </section>
-        </div>
+                </SettingsSection>
+                <SettingsSection title="Shared settings">
+                    <Checkbox label="Use the same settings for every topic" checked={shareModifiers}
+                        onChange={event => setShareModifiers(event.target.checked)} />
+                    {shareModifiers && <TopicModifierFields topicId="all" modifiers={modifiers} onChange={setModifiers} />}
+                </SettingsSection>
+            </>}
+        </SettingsModal>
     );
 }

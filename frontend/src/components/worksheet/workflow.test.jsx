@@ -5,10 +5,51 @@ import Input from '../ui/Input';
 import SaveTemplateForm from './SaveTemplateForm';
 import Sidebar from './Sidebar';
 import TopicCustomizeModal from './TopicCustomizeModal';
+import UniformSettingsForm from './UniformSettingsForm';
+import SectionSettingsModal from './SectionSettingsModal';
+import RadioGroup from '../ui/RadioGroup';
+import Slider from '../ui/Slider';
 
 afterEach(cleanup);
 
 describe('worksheet settings', () => {
+    it.each([2, 3])('evenly spaces %i sidebar controls while keeping icons close to their fields', count => {
+        const view = render(<UniformSettingsForm settings={{ pageCount: 1, problemsPerPage: 10 }} onChange={vi.fn()}>
+            {count === 3 && <button type="button">Share settings</button>}
+        </UniformSettingsForm>);
+        const row = view.container.firstElementChild;
+        expect(row.style.gridTemplateColumns).toBe(`repeat(${count}, minmax(0, 1fr))`);
+        for (const label of row.querySelectorAll('label')) {
+            expect(label.className).toContain('justify-center');
+            expect(label.className).toContain('gap-xxs');
+            expect(label.className).not.toContain('justify-between');
+        }
+    });
+    it('uses native radio choices and a slider with an accessible value', () => {
+        const radioChange = vi.fn();
+        const sliderChange = vi.fn();
+        render(<>
+            <RadioGroup label="Number length" options={[{ value: 'up_to', label: 'Up to' }, { value: 'strict', label: 'Exactly' }]}
+                value="up_to" onChange={radioChange} />
+            <Slider label="Negative numbers" value={25} valueText="25% chance for each number" onChange={sliderChange} />
+        </>);
+        expect(screen.getByRole('radio', { name: 'Up to' }).checked).toBe(true);
+        fireEvent.click(screen.getByRole('radio', { name: 'Exactly' }));
+        expect(radioChange).toHaveBeenCalledWith('strict');
+        const slider = screen.getByRole('slider', { name: 'Negative numbers' });
+        expect(slider.getAttribute('aria-valuetext')).toBe('25% chance for each number');
+        fireEvent.change(slider, { target: { value: '50' } });
+        expect(sliderChange).toHaveBeenCalledWith(50);
+    });
+    it('uses icons instead of visible captions while retaining accessible field names', () => {
+        const view = render(<UniformSettingsForm settings={{ pageCount: 2, problemsPerPage: 10 }} onChange={vi.fn()} />);
+        expect(screen.getByRole('spinbutton', { name: 'Pages in this section' }).value).toBe('2');
+        expect(screen.getByRole('spinbutton', { name: 'Problems Per Page' }).value).toBe('10');
+        expect(screen.queryByText('Pages')).toBeNull();
+        expect(screen.queryByText('Per page')).toBeNull();
+        expect(view.container.querySelectorAll('svg')).toHaveLength(2);
+        expect(view.container.querySelector('label').title).toBe('Pages in this section');
+    });
     it('forwards field metadata and clamps the value sent to its parent on blur', () => {
         const changes = [];
         function Settings() {
@@ -53,6 +94,46 @@ const topics = [{ id: 'one', subject: 'Arithmetic', topicId: 'addition', topicNa
 const section = { id: 'section-1', mode: 'single', topics, pageCount: 1, problemsPerPage: 10 };
 
 describe('template saving', () => {
+    it('keeps focus inside settings and supports Escape without saving', () => {
+        const onClose = vi.fn();
+        const onConfirm = vi.fn();
+        render(<TopicCustomizeModal topic={topics[0]} subject="Arithmetic" sections={[section]}
+            initialSectionId={section.id} customize editing onConfirm={onConfirm} onClose={onClose} />);
+        expect(document.activeElement).toBe(screen.getByLabelText('Topic name'));
+        const close = screen.getByRole('button', { name: 'Close settings' });
+        const save = screen.getByRole('button', { name: 'Save changes' });
+        close.focus();
+        fireEvent.keyDown(close, { key: 'Tab', shiftKey: true });
+        expect(document.activeElement).toBe(save);
+        fireEvent.keyDown(save, { key: 'Tab' });
+        expect(document.activeElement).toBe(close);
+        fireEvent.keyDown(close, { key: 'Escape' });
+        expect(onClose).toHaveBeenCalledOnce();
+        expect(onConfirm).not.toHaveBeenCalled();
+    });
+    it.each(['header', 'mixed'])('saves optional instructions from the %s settings modal', mode => {
+        const onSave = vi.fn();
+        const item = { ...section, mode, title: 'Practice' };
+        render(<SectionSettingsModal section={item} onSave={onSave} onClose={vi.fn()} />);
+        const instructions = screen.getByLabelText('Instructions (optional)');
+        expect(instructions.value).toBe('');
+        fireEvent.change(instructions, { target: { value: ' Show your work. ' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+        expect(onSave).toHaveBeenCalledWith(item.id, expect.objectContaining({ instructions: 'Show your work.' }));
+    });
+
+    it('shows the fixed catalog description and replaces editable description/destination fields with instructions', () => {
+        const onConfirm = vi.fn();
+        render(<TopicCustomizeModal topic={{ id: 'addition', name: 'Addition', description: 'Not catalog text' }}
+            subject="Arithmetic" sections={[]} customize onConfirm={onConfirm} onClose={vi.fn()} />);
+        expect(screen.getByText('Basic addition problems.')).toBeTruthy();
+        expect(screen.queryByLabelText('Description')).toBeNull();
+        expect(screen.queryByLabelText('Add to section')).toBeNull();
+        fireEvent.change(screen.getByLabelText('Instructions (optional)'), { target: { value: 'Show your work.' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Add topic' }));
+        expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ instructions: 'Show your work.' }), 'new');
+        expect(onConfirm.mock.calls[0][0]).not.toHaveProperty('description');
+    });
     it('offers the three compact answer-key choices with their original request values', () => {
         const onChange = vi.fn();
         render(<Sidebar sections={[section]} answerKeyMode="none" onAnswerKeyModeChange={onChange} />);
@@ -68,7 +149,7 @@ describe('template saving', () => {
             initialSectionId={section.id} customize editing sharedModifiers={topics[0].modifiers}
             onConfirm={onConfirm} onClose={vi.fn()} />);
         expect(screen.queryByLabelText('Add to section')).toBeNull();
-        expect(screen.getByLabelText('Integer-part digits').disabled).toBe(true);
+        expect(screen.getByLabelText('Number of digits').disabled).toBe(true);
         fireEvent.change(screen.getByLabelText('Topic name'), { target: { value: 'Warm-up' } });
         fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
         expect(onConfirm).toHaveBeenCalledWith(expect.objectContaining({ id: topics[0].id, topicName: 'Warm-up' }), section.id);

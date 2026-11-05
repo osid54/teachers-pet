@@ -11,6 +11,7 @@ export default function ProblemTypeCard({
 }) {
   return (
     <article
+      data-topic-surface={`catalog:${topic.id}`}
       className={`bg-main-100 rounded-md transition-all duration-200 text-center flex flex-col border-2 shadow-sm
         overflow-hidden min-h-40 w-full min-[769px]:min-h-52
         ${isSelected ? "border-main-500 shadow-md" : "border-transparent hover:shadow-md"}`}

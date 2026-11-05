@@ -136,12 +136,12 @@ class DatabaseWorkflowTests(unittest.IsolatedAsyncioTestCase):
             "answer_key_mode": "inline",
             "sections": [
                 {"mode": "single", "page_count": 1, "problems_per_page": 2,
-                 "topics": [{"topic_id": "addition", "topic_name": "Warm-up sums", "description": "Custom practice", "modifiers": {
+                 "topics": [{"topic_id": "addition", "topic_name": "Warm-up sums", "instructions": "Show your work.", "modifiers": {
                      "digits": 3, "digit_mode": "strict", "decimal_places": 2,
                      "negative_probability": 0, "answer_rounding": 2,
                  }}]},
-                {"mode": "header", "title": "Mixed practice"},
-                {"mode": "mixed", "page_count": 1, "problems_per_page": 3,
+                {"mode": "header", "title": "Mixed practice", "instructions": "Work independently."},
+                {"mode": "mixed", "page_count": 1, "problems_per_page": 3, "instructions": "Complete each problem.",
                  "topics": [
                     {"topic_id": "addition", "modifiers": {}},
                     {"topic_id": "subtraction", "modifiers": {"negative_probability": 0.25}},

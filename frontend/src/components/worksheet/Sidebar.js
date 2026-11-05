@@ -8,7 +8,7 @@ import { Save } from 'lucide-react';
 
 export default function WorksheetGenerationSidebar({
     sections, openSectionId, onToggleSection, onAddSection, onAddHeader,
-    onRemoveEntry, onEditEntry, onDuplicateEntry, onDuplicateTopic, onUpdateSection, onToggleSharedModifiers,
+    onRemoveEntry, onEditEntry, onRenameHeader, onDuplicateEntry, onDuplicateTopic, onUpdateSection, onToggleSharedModifiers,
     onRemoveTopic,
     onReorderEntries, onMoveTopic, onPromoteTopic, onGenerate, isGenerating,
     onSaveTemplate, isSavingTemplate, saveTemplateError, generateError, pdfUrl,
@@ -34,7 +34,7 @@ export default function WorksheetGenerationSidebar({
     const topicSections = sections.filter(section => section.mode !== 'header');
     const isGenerateButtonDisabled = isGenerating || !topicSections.length ||
         sections.at(-1)?.mode === 'header' ||
-        topicSections.some(section => !section.topics.length || (section.mode === 'mixed' && section.topics.length < 2));
+        topicSections.some(section => section.mode === 'single' && !section.topics.length);
     const isSaveButtonDisabled = !topicSections.length ||
         topicSections.some(section => !section.topics.length || (section.mode === 'mixed' && section.topics.length < 2)) ||
         sections.at(-1)?.mode === 'header';
@@ -89,7 +89,7 @@ export default function WorksheetGenerationSidebar({
 
                 <SectionAccordion sections={sections} openSectionId={openSectionId}
                     onToggleSection={onToggleSection} onAddSection={onAddSection} onAddHeader={onAddHeader}
-                    onRemoveEntry={onRemoveEntry} onEditEntry={onEditEntry} onDuplicateEntry={onDuplicateEntry}
+                    onRemoveEntry={onRemoveEntry} onEditEntry={onEditEntry} onRenameHeader={onRenameHeader} onDuplicateEntry={onDuplicateEntry}
                     onDuplicateTopic={onDuplicateTopic} onUpdateSection={onUpdateSection}
                     onToggleSharedModifiers={onToggleSharedModifiers} onRemoveTopic={onRemoveTopic}
                     onReorderEntries={onReorderEntries} onMoveTopic={onMoveTopic} onPromoteTopic={onPromoteTopic} />
