@@ -176,6 +176,65 @@ describe('template saving', () => {
             settings_json: { sections: [section], workflowMode: 'accordion', answerKeyMode: 'separate' } }));
     });
 
+    it('presents the save form as a dialog and restores focus after Escape', () => {
+        const onClose = vi.fn();
+        const onSubmit = vi.fn();
+        function FormHost() {
+            const [isOpen, setIsOpen] = useState(false);
+            return <>
+                <button type="button" onClick={() => setIsOpen(true)}>Open save form</button>
+                {isOpen && <SaveTemplateForm sections={[section]} answerKeyMode="none" onSubmit={onSubmit}
+                    onClose={() => { onClose(); setIsOpen(false); }} />}
+            </>;
+        }
+        render(<FormHost />);
+        const opener = screen.getByRole('button', { name: 'Open save form' });
+        opener.focus();
+        fireEvent.click(opener);
+        const dialog = screen.getByRole('dialog', { name: 'Save Template' });
+        const nameField = screen.getByLabelText('Template Name');
+        const cancel = screen.getByRole('button', { name: 'Cancel' });
+        expect(dialog.getAttribute('aria-modal')).toBe('true');
+        expect(document.activeElement).toBe(nameField);
+        cancel.focus();
+        fireEvent.keyDown(cancel, { key: 'Tab' });
+        expect(document.activeElement).toBe(nameField);
+        fireEvent.keyDown(nameField, { key: 'Tab', shiftKey: true });
+        expect(document.activeElement).toBe(cancel);
+        fireEvent.keyDown(cancel, { key: 'Escape' });
+        expect(onClose).toHaveBeenCalledOnce();
+        expect(onSubmit).not.toHaveBeenCalled();
+        expect(document.activeElement).toBe(opener);
+    });
+
+    it('summarizes the worksheet and explains public sharing while keeping templates private by default', () => {
+        const mixedSection = { ...section, id: 'mixed', mode: 'mixed', topics: [
+            topics[0], { ...topics[0], id: 'two', topicId: 'subtraction', topicName: 'Subtraction' },
+        ], pageCount: 1, problemsPerPage: 5 };
+        render(<SaveTemplateForm sections={[{ ...section, pageCount: 2 }, mixedSection]}
+            answerKeyMode="separate" onSubmit={vi.fn()} onClose={vi.fn()} />);
+        const summary = screen.getByRole('region', { name: 'Worksheet summary' });
+        expect(summary.textContent).toContain('Addition, Addition, Subtraction');
+        const values = Object.fromEntries([...summary.querySelectorAll('dt')]
+            .map(label => [label.textContent, label.nextElementSibling.textContent]));
+        expect(values).toEqual({ Sections: '2', Topics: '3', Pages: '3', Problems: '25', 'Answer key': 'After' });
+        expect(screen.getByRole('checkbox', { name: 'Make Public' }).checked).toBe(false);
+        expect(screen.getByText(/Anyone can view their details and use a copy/)).toBeTruthy();
+    });
+
+    it('blocks saving worksheets beyond the generation problem limit', () => {
+        const onSubmit = vi.fn();
+        const oversizedSections = Array.from({ length: 5 }, (_, index) => ({
+            id: `section-${index}`, mode: 'single', topics: [{ ...topics[0], id: `topic-${index}` }],
+            pageCount: 50, problemsPerPage: 50,
+        }));
+        render(<SaveTemplateForm sections={oversizedSections} answerKeyMode="none" onSubmit={onSubmit} />);
+        fireEvent.change(screen.getByLabelText('Template Name'), { target: { value: 'Oversized practice' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Save Template' }));
+        expect(screen.getByRole('alert').textContent).toContain('10,000 problems');
+        expect(onSubmit).not.toHaveBeenCalled();
+    });
+
     it('opens the sidebar form without undefined handlers and supports cancellation', () => {
         render(<Sidebar sections={[section]} openSectionId={section.id} answerKeyMode="none"
             onAnswerKeyModeChange={vi.fn()} onSaveTemplate={vi.fn()} />);

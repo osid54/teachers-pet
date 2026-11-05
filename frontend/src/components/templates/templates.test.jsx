@@ -24,7 +24,7 @@ describe('template library components', () => {
         const onFiltersChange = vi.fn();
         render(<>
             <TemplateToolbar search="" onSearchChange={vi.fn()} filters={{ tags: [], sortBy: 'created_at', sortOrder: 'desc' }} onFiltersChange={onFiltersChange} />
-            <SaveTemplateForm sections={[{ id: 'section', mode: 'single', topics: [{ id: 'topic', topicId: 'addition' }],
+            <SaveTemplateForm sections={[{ id: 'section', mode: 'single', topics: [{ id: 'topic', subject: 'Arithmetic', topicId: 'addition' }],
                 pageCount: 1, problemsPerPage: 10 }]} answerKeyMode="none" onSubmit={onSubmit} onClose={vi.fn()} />
         </>);
         fireEvent.click(screen.getByRole('button', { name: 'Filters' }));
