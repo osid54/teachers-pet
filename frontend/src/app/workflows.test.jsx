@@ -347,11 +347,13 @@ describe('template browsing integration', () => {
         expect((await screen.findByRole('button', { name: 'Like Practice' })).getAttribute('aria-pressed')).toBe('true');
         expect(screen.getByRole('button', { name: 'Favorite Practice' }).querySelector('svg').getAttribute('fill')).toBe('currentColor');
     });
-    it('filters owned templates even though the API returns the entire owned list', async () => {
+    it('uses backend search results for owned templates', async () => {
+        mocks.api.get.mockImplementation(async (_path, config) => ({ data: config.params?.q ? [] : [template] }));
         render(<MemoryRouter><TemplatesPage /></MemoryRouter>);
         fireEvent.click(await screen.findByRole('button', { name: 'Mine', exact: true }));
         await screen.findByRole('button', { name: 'Edit Template' });
         fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'no match' } });
+        await waitFor(() => expect(mocks.api.get.mock.calls.at(-1)[1].params.q).toBe('no match'));
         await waitFor(() => expect(screen.queryByText('Practice')).toBeNull());
         expect(screen.queryByRole('button', { name: 'Next', exact: true })).toBeNull();
     });
