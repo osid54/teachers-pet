@@ -1,4 +1,6 @@
 import { Checkbox, Input } from '@/components/ui';
+import RadioGroup from '@/components/ui/RadioGroup';
+import Slider from '@/components/ui/Slider';
 
 export const DEFAULT_TOPIC_MODIFIERS = {
     digits: 2,
@@ -11,60 +13,68 @@ export const DEFAULT_TOPIC_MODIFIERS = {
 };
 
 export default function TopicModifierFields({ topicId, modifiers, onChange, disabled = false }) {
-    const handleChange = (event) => {
-        const { name, value, type, checked } = event.target;
-        const next = { ...modifiers };
-        let nextValue = type === 'checkbox' ? checked : value;
-        if (type === 'number') nextValue = value === '' ? 0 : Number(value);
-        if (name === 'negative_probability_percent') {
-            next.negative_probability = nextValue / 100;
-        } else if (name === 'answer_rounding') {
-            next.answer_rounding = value === '' ? null : Number(value);
-        } else if (name === 'division_mode') {
-            next.division_mode = nextValue;
-            if (nextValue === 'remainder') {
-                next.decimal_places = 0;
-                next.negative_probability = 0;
-            }
-        } else {
-            next[name] = nextValue;
-        }
-        onChange(next);
-    };
+    const hasDivision = topicId === 'division' || topicId === 'all';
+    const hasSubtraction = topicId === 'subtraction' || topicId === 'all';
+    const remainder = hasDivision && modifiers.division_mode === 'remainder';
+    const showRounding = topicId !== 'division' || modifiers.division_mode === 'decimal';
+    const chance = Math.round(modifiers.negative_probability * 100);
+    const update = changes => onChange({ ...modifiers, ...changes });
+    const selectClass = 'min-h-10 w-full rounded-sm border border-main-300 bg-main-200 px-sm py-xs text-sm text-main-700 focus-visible:outline-2 focus-visible:outline-main-600 disabled:opacity-60';
+    const sectionClass = 'min-w-0 border-t border-main-300 pt-md';
+    const legendClass = 'mb-sm pr-sm text-base font-semibold text-main-700';
 
     return (
-        <div className="grid grid-cols-1 gap-sm min-[769px]:grid-cols-2 min-[769px]:gap-md">
-            <Input label="Integer-part digits" type="number" name="digits" value={modifiers.digits}
-                onChange={handleChange} min={1} max={5} maxDigits={1} disabled={disabled} />
-            <label className="flex flex-col gap-xxs text-sm text-main-500">Digit rule
-                <select className="border border-main-300 rounded-sm bg-main-200 text-main-600 p-xs"
-                    name="digit_mode" value={modifiers.digit_mode} onChange={handleChange} disabled={disabled}>
-                    <option value="up_to">Up to this many</option><option value="strict">Exactly this many</option>
-                </select>
-            </label>
-            <Input label="Decimal places" type="number" name="decimal_places" value={modifiers.decimal_places}
-                onChange={handleChange} min={0} max={5} maxDigits={1} disabled={disabled} />
-            <Input label="Negative chance per operand (%)" type="number" name="negative_probability_percent"
-                value={Math.round(modifiers.negative_probability * 100)} onChange={handleChange}
-                min={0} max={100} maxDigits={3} disabled={disabled || (topicId === 'division' && modifiers.division_mode === 'remainder')} />
-            <Checkbox label="Allow negative answers" name="allow_negative_answers"
-                checked={modifiers.allow_negative_answers} onChange={handleChange}
-                disabled={disabled || (topicId !== 'subtraction' && topicId !== 'all')} />
-            <label className="flex flex-col gap-xxs text-sm text-main-500">Division rule
-                <select className="border border-main-300 rounded-sm bg-main-200 text-main-600 p-xs"
-                    name="division_mode" value={modifiers.division_mode} onChange={handleChange}
-                    disabled={disabled || (topicId !== 'division' && topicId !== 'all')}>
-                    <option value="exact">Exact quotient</option><option value="remainder">Remainder</option><option value="decimal">Decimal quotient</option>
-                </select>
-            </label>
-            <label className="flex flex-col gap-xxs text-sm text-main-500">Answer rounding (decimal places)
-                <select className="border border-main-300 rounded-sm bg-main-200 text-main-600 p-xs"
-                    name="answer_rounding" value={modifiers.answer_rounding ?? ''} onChange={handleChange} disabled={disabled}>
-                    <option value="">Default</option>{[0, 1, 2, 3, 4, 5].map(value => (
-                        <option key={value} value={value}>{value}</option>
-                    ))}
-                </select>
-            </label>
+        <div className="flex min-w-0 flex-col gap-lg">
+            <fieldset disabled={disabled} className={sectionClass}>
+                <legend className={legendClass}>Number size</legend>
+                <div className="grid gap-md min-[520px]:grid-cols-2">
+                    <Input label="Number of digits" type="number" name="digits" value={modifiers.digits}
+                        onChange={event => update({ digits: Number(event.target.value) })}
+                        min={1} max={5} maxDigits={1} disabled={disabled} labelPosition="top" />
+                    <label className="flex min-w-0 flex-col gap-xxs text-sm font-medium text-main-600">Decimal places
+                        <select className={selectClass} name="decimal_places" value={modifiers.decimal_places}
+                            onChange={event => update({ decimal_places: Number(event.target.value) })} disabled={disabled || remainder}>
+                            <option value={0}>Whole numbers only</option>
+                            {[1, 2, 3, 4, 5].map(value => <option key={value} value={value}>{value} decimal {value === 1 ? 'place' : 'places'}</option>)}
+                        </select>
+                    </label>
+                    <div className="min-[520px]:col-span-2">
+                        <RadioGroup label="Number length" name={`digit_mode_${topicId}`} value={modifiers.digit_mode}
+                            onChange={value => update({ digit_mode: value })} disabled={disabled}
+                            options={[{ value: 'up_to', label: 'Up to this many digits' }, { value: 'strict', label: 'Exactly this many digits' }]} />
+                    </div>
+                </div>
+            </fieldset>
+
+            <fieldset disabled={disabled} className={sectionClass}>
+                <legend className={legendClass}>Negative numbers</legend>
+                <Slider label="Chance of a negative number" name="negative_probability_percent" value={chance}
+                    onChange={value => update({ negative_probability: value / 100 })} step={25} disabled={disabled || remainder}
+                    formatValue={value => `${value}%`} valueText={`${chance}% chance for each number`} minLabel="Never" maxLabel="Always" />
+            </fieldset>
+
+            <fieldset disabled={disabled} className={sectionClass}>
+                <legend className={legendClass}>Answer settings</legend>
+                <div className="flex flex-col gap-md">
+                    {hasDivision && <RadioGroup label="Division answers" name={`division_mode_${topicId}`} value={modifiers.division_mode}
+                        onChange={value => update(value === 'remainder'
+                            ? { division_mode: value, decimal_places: 0, negative_probability: 0 } : { division_mode: value })}
+                        disabled={disabled} options={[
+                            { value: 'exact', label: 'Whole numbers' }, { value: 'remainder', label: 'With remainders' }, { value: 'decimal', label: 'Decimals' },
+                        ]} />}
+                    {hasSubtraction && <Checkbox label="Allow negative answers" name="allow_negative_answers"
+                        checked={modifiers.allow_negative_answers} disabled={disabled}
+                        onChange={event => update({ allow_negative_answers: event.target.checked })} />}
+                    {showRounding && <label className="flex min-w-0 flex-col gap-xxs text-sm font-medium text-main-600">Round answers to
+                        <select className={selectClass} name="answer_rounding" value={modifiers.answer_rounding ?? ''}
+                            onChange={event => update({ answer_rounding: event.target.value === '' ? null : Number(event.target.value) })}
+                            disabled={disabled}>
+                            <option value="">Automatic</option><option value={0}>Nearest whole number</option>
+                            {[1, 2, 3, 4, 5].map(value => <option key={value} value={value}>{value} decimal {value === 1 ? 'place' : 'places'}</option>)}
+                        </select>
+                    </label>}
+                </div>
+            </fieldset>
         </div>
     );
 }

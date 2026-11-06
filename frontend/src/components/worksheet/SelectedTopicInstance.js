@@ -1,31 +1,31 @@
 'use client';
 
-import { useState } from 'react';
 import WorksheetItemBar, { ItemPanel } from './WorksheetItemBar';
 import UniformSettingsForm from './UniformSettingsForm';
 
 export default function SelectedTopicInstance({
     instance,
     settings,
+    expanded = false,
+    onToggle,
     onEdit,
     onDuplicate,
     duplicateDisabled,
     onRemove,
-    onDragStart,
-    onDrop,
+    dragHandle,
     dragLabel = instance.topicName,
 }) {
-    const [expanded, setExpanded] = useState(false);
     const panelId = `topic-settings-${instance.id}`;
 
     return (
         <article data-open={expanded}
-            className={`min-w-0 rounded-sm border bg-main-100 transition-[border-color,box-shadow] duration-200 motion-reduce:transition-none ${
-                expanded ? 'border-main-500 ring-2 ring-main-500 ring-inset' : 'border-main-300'}`}
-            onDragOver={event => event.preventDefault()} onDrop={onDrop}>
+            className={`min-w-0 rounded-sm border-[1px] bg-main-100 transition-[border-color,box-shadow] duration-200 motion-reduce:transition-none ${
+                expanded ? 'border-main-500' : 'border-main-300'}`}
+            >
             <WorksheetItemBar title={instance.topicName} open={expanded}
+                surfaceId={`item:${instance.id}`}
                 toggleLabel={`Toggle settings for ${instance.topicName}`} panelId={panelId}
-                onToggle={() => setExpanded(value => !value)} dragLabel={`Drag ${dragLabel}`} onDragStart={onDragStart}
+                onToggle={onToggle} dragLabel={`Drag ${dragLabel}`} dragHandle={dragHandle}
                 editLabel={`Edit ${instance.topicName}`} onEdit={onEdit}
                 duplicateLabel={`Duplicate ${instance.topicName}`} onDuplicate={onDuplicate} duplicateDisabled={duplicateDisabled}
                 removeLabel={`Remove ${instance.topicName}`} onRemove={() => onRemove(instance.id)} />

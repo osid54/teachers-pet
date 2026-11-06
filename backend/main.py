@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, status, Query, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
-from typing import Optional, List
+from typing import Annotated, Optional, List
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.future import select
@@ -30,6 +30,8 @@ from models import User, Template, user_likes_template, user_favorites_template
 from problem_generator.worksheet import generate_section_problems
 from pdf_generator.main import create_pdf_worksheet
 from schemas import WorksheetHeader, WorksheetRequest
+from template_schemas import TemplateCreate, TemplateListParams, TemplateResponse, TemplateUpdate
+from template_tags import TEMPLATE_TAGS
 
 app = FastAPI(
     title="Teacher's Pet API",
@@ -56,71 +58,6 @@ app.add_middleware(
 )
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-class TemplateBase(BaseModel):
-    name: str = Field(..., min_length=1, max_length=100)
-    description: Optional[str] = Field(None, max_length=500)
-    settings_json: dict = Field(..., description="JSON representation of worksheet settings")
-    is_public: bool = Field(False)
-    tags: List[str] = Field(default_factory=list, description="List of predefined tags for the template")
-
-    @field_validator("name")
-    @classmethod
-    def validate_name(cls, name):
-        name = name.strip()
-        if not name:
-            raise ValueError("Template name cannot be blank.")
-        return name
-
-class TemplateCreate(TemplateBase):
-    pass
-
-class TemplateUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=100)
-    description: Optional[str] = Field(None, max_length=500)
-    settings_json: Optional[dict] = None
-    is_public: Optional[bool] = None
-    tags: Optional[List[str]] = None
-
-    @field_validator("name")
-    @classmethod
-    def validate_name(cls, name):
-        if name is None:
-            raise ValueError("Template name cannot be null.")
-        name = name.strip()
-        if not name:
-            raise ValueError("Template name cannot be blank.")
-        return name
-
-    @field_validator("settings_json", "is_public", "tags")
-    @classmethod
-    def validate_non_nullable_update_fields(cls, value):
-        if value is None:
-            raise ValueError("This field cannot be null.")
-        return value
-
-class TemplateResponse(TemplateBase):
-    id: int
-    user_id: int
-    likes_count: int
-    is_liked: bool = False
-    is_favorited: bool = False
-    created_at: datetime
-    updated_at: datetime
-
-    owner_username: Optional[str] = None
-
-    class Config:
-        from_attributes = True
-
-    @classmethod
-    def from_orm_with_owner(cls, template_obj: Template, user_obj: Optional[User] = None):
-        data = cls.model_validate(template_obj).model_dump()
-        if user_obj: 
-            data["owner_username"] = user_obj.username
-        else:
-            data["owner_username"] = None 
-        return data
 
 class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
@@ -327,14 +264,30 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
 
 @app.get("/templates/me", response_model=List[TemplateResponse])
 async def get_my_templates(
+    filters: Annotated[TemplateListParams, Query()],
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    result = await db.execute(
-        select(Template).filter(Template.user_id == current_user.id).order_by(Template.created_at.desc())
-    )
-    my_templates = result.scalars().all()
-    return [TemplateResponse.from_orm_with_owner(t, current_user) for t in my_templates]
+    query = select(Template).options(joinedload(Template.owner)).filter(Template.user_id == current_user.id)
+    result = await db.execute(filter_template_query(query, filters))
+    return await template_responses_with_interactions(result.scalars().all(), current_user, db)
+
+
+def filter_template_query(query, filters):
+    if filters.q:
+        search_pattern = f"%{filters.q.lower()}%"
+        query = query.filter(
+            func.lower(Template.name).like(search_pattern) |
+            func.lower(Template.description).like(search_pattern)
+        )
+    if filters.tags:
+        query = query.filter(cast(Template.tags, JSONB).contains(filters.tags))
+    sort_column = Template.likes_count if filters.sort_by == "likes_count" else Template.created_at
+    descending = filters.sort_order == "desc"
+    return query.order_by(
+        sort_column.desc() if descending else sort_column.asc(),
+        Template.id.desc() if descending else Template.id.asc(),
+    ).offset(filters.skip).limit(filters.limit)
 
 async def template_responses_with_interactions(templates, current_user, db):
     liked_ids = set()
@@ -356,54 +309,21 @@ async def template_responses_with_interactions(templates, current_user, db):
 
 @app.get("/templates/public", response_model=List[TemplateResponse])
 async def get_public_templates(
-    skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=100),
-    q: Optional[str] = Query(None, description="Search query for template name or description"),
-    tags: Optional[List[str]] = Query(None, description="Filter by list of tags"),
-    sort_by: str = Query("created_at", regex="^(created_at|likes_count)$"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$"),
+    filters: Annotated[TemplateListParams, Query()],
     db: AsyncSession = Depends(get_db),
     current_user: Optional[User] = Depends(get_optional_current_user)
 ):
     query = select(Template).options(joinedload(Template.owner)).filter(Template.is_public == True)
 
-    if q: 
-        search_pattern = f"%{q.lower()}%"
-        query = query.filter(
-            (func.lower(Template.name).like(search_pattern)) |
-            (func.lower(Template.description).like(search_pattern))
-        )
-
-    if tags:
-        query = query.filter(cast(Template.tags, JSONB).contains(tags))
-
-    if sort_by == "created_at":
-        if sort_order == "desc":
-            query = query.order_by(Template.created_at.desc())
-        else:
-            query = query.order_by(Template.created_at.asc())
-    elif sort_by == "likes_count":
-        if sort_order == "desc":
-            query = query.order_by(Template.likes_count.desc())
-        else:
-            query = query.order_by(Template.likes_count.asc())
-
-    query = query.offset(skip).limit(limit)
-
-    result = await db.execute(query)
+    result = await db.execute(filter_template_query(query, filters))
     public_templates = result.scalars().all()
 
     return await template_responses_with_interactions(public_templates, current_user, db)
 
 @app.get("/templates/saved", response_model=List[TemplateResponse])
 async def get_saved_templates(
+    filters: Annotated[TemplateListParams, Query()],
     current_user: User = Depends(get_current_user),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(10, ge=1, le=100),
-    q: Optional[str] = Query(None, description="Search query for template name or description"),
-    tags: Optional[List[str]] = Query(None, description="Filter by list of tags"),
-    sort_by: str = Query("created_at", regex="^(created_at|likes_count)$"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$"),
     db: AsyncSession = Depends(get_db)
 ):
     query = select(Template).join(user_favorites_template).filter(
@@ -411,32 +331,15 @@ async def get_saved_templates(
         or_(Template.is_public.is_(True), Template.user_id == current_user.id),
     ).options(joinedload(Template.owner))
 
-    if q:
-        search_pattern = f"%{q.lower()}%"
-        query = query.filter(
-            (func.lower(Template.name).like(search_pattern)) |
-            (func.lower(Template.description).like(search_pattern))
-        )
-    if tags:
-        query = query.filter(cast(Template.tags, JSONB).contains(tags))
-
-    if sort_by == "created_at":
-        if sort_order == "desc":
-            query = query.order_by(Template.created_at.desc())
-        else:
-            query = query.order_by(Template.created_at.asc())
-    elif sort_by == "likes_count":
-        if sort_order == "desc":
-            query = query.order_by(Template.likes_count.desc())
-        else:
-            query = query.order_by(Template.likes_count.asc())
-
-    query = query.offset(skip).limit(limit)
-
-    result = await db.execute(query)
+    result = await db.execute(filter_template_query(query, filters))
     saved_templates = result.scalars().all()
 
     return await template_responses_with_interactions(saved_templates, current_user, db)
+
+@app.get("/templates/tags", response_model=List[str])
+async def get_template_tags():
+    return list(TEMPLATE_TAGS)
+
 
 @app.get("/templates/{template_id}", response_model=TemplateResponse)
 async def get_template_by_id(
@@ -564,7 +467,7 @@ async def generate_worksheet_endpoint(request: WorksheetRequest):
     section_number = 0
     for section in request.sections:
         if isinstance(section, WorksheetHeader):
-            all_problems_data_for_pdf.append({"mode": "header", "title": section.title})
+            all_problems_data_for_pdf.append({"mode": "header", "title": section.title, "instructions": section.instructions})
             continue
         section_number += 1
         pages = await run_in_threadpool(generate_section_problems, section, rng)
@@ -572,6 +475,7 @@ async def generate_worksheet_endpoint(request: WorksheetRequest):
         all_problems_data_for_pdf.append({
             "section_number": section_number,
             "mode": section.mode,
+            "instructions": section.instructions,
             "topics": [topic.model_dump() for topic in section.topics],
             "page_count": section.page_count,
             "problems_per_page": section.problems_per_page,

@@ -1,359 +1,127 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Button, Input, Checkbox } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import TemplateListGrid from '@/components/templates/TemplateListGrid';
-import { PREDEFINED_TAGS } from '@/lib/constants';
-import { ArrowDown, ArrowUp } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogIn, LogOut, Plus, RotateCw, Trash2 } from 'lucide-react';
+import { useTemplates } from '@/hooks/useTemplates';
+import TemplateToolbar from '@/components/templates/TemplateToolbar';
+import TemplateAuthDialog from '@/components/templates/TemplateAuthDialog';
+import SettingsModal from '@/components/worksheet/SettingsModal';
 
 export default function TemplatesPage() {
-    const {
-        user, isLoggedIn, isLoading: authLoading, error: authError,
-        login, register, logout, authApi
-    } = useAuth();
-
-    const [activeTab, setActiveTab] = useState('public');
-    const [isMounted, setIsMounted] = useState(false);
+    const { user, isLoggedIn, isLoading: authLoading, logout, authApi } = useAuth();
+    const library = useTemplates({ api: authApi, userId: user?.id, isLoggedIn, authLoading });
+    const [showAuth, setShowAuth] = useState(false);
+    const [signInTarget, setSignInTarget] = useState('my');
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteError, setDeleteError] = useState(null);
     const navigate = useNavigate();
-
-    const [showLoginForm, setShowLoginForm] = useState(false);
-    const [showRegisterForm, setShowRegisterForm] = useState(false);
-    const [loginUsername, setLoginUsername] = useState('');
-    const [loginPassword, setLoginPassword] = useState('');
-    const [registerUsername, setRegisterUsername] = useState('');
-    const [registerEmail, setRegisterEmail] = useState('');
-    const [registerPassword, setRegisterPassword] = useState('');
-    const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
-    const [inlineAuthError, setInlineAuthError] = useState(null);
-
-    const [publicTemplates, setPublicTemplates] = useState([]);
-    const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
-    const [templatesError, setTemplatesError] = useState(null);
-
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedTags, setSelectedTags] = useState([]);
-    const [sortBy, setSortBy] = useState('created_at');
-    const [sortOrder, setSortOrder] = useState('desc');
-    const [currentPage, setCurrentPage] = useState(0);
-    const templatesPerPage = 10;
-
-    useEffect(() => { setIsMounted(true); }, [isLoggedIn]);
-
-    const fetchTemplates = useCallback(async (signal) => {
-        if (!isMounted || authLoading || !authApi) {
-            return;
-        }
-
-        setIsLoadingTemplates(true);
-        setTemplatesError(null);
-
-        try {
-            let response;
-            if (activeTab === 'public') {
-                const params = {
-                    skip: currentPage * templatesPerPage,
-                    limit: templatesPerPage,
-                    q: searchQuery || undefined,
-                    tags: selectedTags.length > 0 ? selectedTags : undefined,
-                    sort_by: sortBy,
-                    sort_order: sortOrder,
-                };
-                response = await authApi.get('/templates/public', { params, signal, paramsSerializer: { indexes: null } });
-            } else if (activeTab === 'my' && isLoggedIn) {
-                response = await authApi.get('/templates/me', { signal });
-                const query = searchQuery.toLowerCase();
-                response.data = response.data.filter(template =>
-                    `${template.name} ${template.description || ''}`.toLowerCase().includes(query) &&
-                    selectedTags.every(tag => template.tags?.includes(tag))
-                ).sort((first, second) => {
-                    const comparison = sortBy === 'likes_count'
-                        ? first.likes_count - second.likes_count
-                        : new Date(first.created_at) - new Date(second.created_at);
-                    return sortOrder === 'asc' ? comparison : -comparison;
-                });
-            } else if (activeTab === 'saved' && isLoggedIn) {
-                response = await authApi.get('/templates/saved', {
-                    signal,
-                    params: { skip: currentPage * templatesPerPage, limit: templatesPerPage,
-                        q: searchQuery || undefined, tags: selectedTags.length ? selectedTags : undefined,
-                        sort_by: sortBy, sort_order: sortOrder },
-                    paramsSerializer: { indexes: null },
-                });
-            } else {
-                setPublicTemplates([]);
-                return;
-            }
-
-            if (!signal?.aborted) setPublicTemplates(response.data);
-        } catch (err) {
-            if (signal?.aborted) return;
-            console.error(`Failed to fetch ${activeTab} templates:`, err.response?.data || err.message);
-            const msg = err.response?.data?.detail || `Failed to load ${activeTab} templates.`;
-            setTemplatesError(msg);
-            toast.error(msg);
-            if (err.response && (err.response.status === 401 || err.response.status === 403)) {
-                logout();
-            }
-        } finally {
-            if (!signal?.aborted) setIsLoadingTemplates(false);
-        }
-    }, [activeTab, isLoggedIn, isMounted, authLoading, authApi, currentPage, searchQuery, selectedTags, sortBy, sortOrder, logout]);
-
+    const deleting = deleteTarget && library.isPending('delete', deleteTarget.id);
 
     const handleUseTemplate = (template) => {
-        if (typeof window !== 'undefined') {
+        try {
             localStorage.setItem('tempLoadTemplate', JSON.stringify(template.settings_json));
             navigate('/');
-        }
+        } catch { toast.error('This template could not be opened. Please try again.'); }
     };
-
-    const handleEditTemplate = (templateId) => {
-        navigate(`/?templateId=${templateId}`);
-    };
-
-    const handleLikeTemplate = async (templateId) => {
-        if (!isLoggedIn) {
-            toast.error("Please log in to like templates.");
+    const chooseView = tab => {
+        if (tab !== 'public' && !isLoggedIn) {
+            setSignInTarget(tab);
+            setShowAuth(true);
             return;
         }
-        try {
-            const response = await authApi.post(`/templates/${templateId}/like`);
-            toast.success(response.data.message);
-            setPublicTemplates(prev => prev.map(template => template.id === templateId
-                ? { ...template, likes_count: response.data.likes_count, is_liked: !template.is_liked } : template));
-        } catch (err) {
-            console.error("Failed to like template:", err.response?.data || err.message);
-            const msg = err.response?.data?.detail || "Failed to like template.";
-            toast.error(msg);
-        }
+        library.setFilters({ tab });
     };
-
-    const handleFavoriteTemplate = async (templateId) => {
-        if (!isLoggedIn) {
-            toast.error("Please log in to favorite templates.");
-            return;
-        }
-        try {
-            const response = await authApi.post(`/templates/${templateId}/favorite`);
-            toast.success(response.data.message);
-            setPublicTemplates(prev => prev.map(template => template.id === templateId
-                ? { ...template, is_favorited: !(template.is_favorited ?? activeTab === 'saved') } : template));
-            if (activeTab === 'saved') {
-                fetchTemplates();
-            }
-        } catch (err) {
-            console.error("Failed to favorite template:", err.response?.data || err.message);
-            const msg = err.response?.data?.detail || "Failed to favorite template.";
-            toast.error(msg);
-        }
+    const runAction = (action, templateId) => {
+        const template = library.templates.find(item => item.id === templateId);
+        return template ? library[action](template) : Promise.resolve();
     };
-
-    const handleDeleteTemplate = async (templateId) => {
-        if (!isLoggedIn) {
-            toast.error("Please log in to delete templates.");
-            return;
-        }
-        try {
-            await authApi.delete(`/templates/${templateId}`);
-            toast.success("Template deleted successfully!");
-            setPublicTemplates(prev => prev.filter(t => t.id !== templateId));
-        } catch (err) {
-            console.error("Failed to delete template:", err.response?.data || err.message);
-            const msg = err.response?.data?.detail || "Failed to delete template.";
-            toast.error(msg);
-        }
+    const confirmDelete = async event => {
+        event.preventDefault();
+        setDeleteError(null);
+        const result = await library.remove(deleteTarget);
+        if (result.ok) {
+            setDeleteTarget(null);
+            toast.success('Template deleted.');
+        } else setDeleteError(result.error);
     };
-
-    useEffect(() => {
-        const controller = new AbortController();
-        fetchTemplates(controller.signal);
-        return () => controller.abort();
-    }, [fetchTemplates]);
-
-    useEffect(() => {
-        if (!authLoading && !isLoggedIn) {
-            setActiveTab('public');
-            setCurrentPage(0);
-        }
-    }, [authLoading, isLoggedIn]);
-
-    const handleLoginSubmit = async (e) => {
-        e.preventDefault();
-        setInlineAuthError(null);
-        const success = await login(loginUsername, loginPassword);
-        if (!success) {
-            setInlineAuthError(authError || "Login failed. Please try again.");
-        } else {
-            setShowLoginForm(false);
-            setShowRegisterForm(false);
-            setActiveTab('my');
-        }
-    };
-
-    const handleRegisterSubmit = async (e) => {
-        e.preventDefault();
-        setInlineAuthError(null);
-        if (registerPassword !== registerConfirmPassword) {
-            setInlineAuthError("Passwords do not match!");
-            return;
-        }
-        const success = await register(registerUsername, registerPassword, registerEmail);
-        if (!success) {
-            setInlineAuthError(authError || "Registration failed. Username or email may be taken.");
-        } else {
-            alert("Registration successful! Please log in.");
-            setShowLoginForm(true);
-            setShowRegisterForm(false);
-            setRegisterUsername('');
-            setRegisterEmail('');
-            setRegisterPassword('');
-            setRegisterConfirmPassword('');
-        }
-    };
-
-    if (!isMounted) {
-        return <div className="text-center p-xxl text-lg text-main-500 m-0">Loading templates...</div>;
-    }
+    const hasFilters = library.filters.search || library.filters.tags.length;
 
     return (
-        <div className="flex flex-col items-center text-center max-w-[1600px] mx-auto min-h-[calc(100vh-100px)] p-md min-[1025px]:p-xl bg-main-300 rounded-lg shadow-lg">
-            <h1 className="text-h3 min-[769px]:text-xl font-semibold text-main-900 mb-sm min-[769px]:mb-md">Templates</h1>
-
-            {!isLoggedIn ? (
-                <div className="flex flex-col items-center gap-md mb-xxl bg-main-100 rounded-md shadow-sm p-sm min-[769px]:p-xxl w-[90%] min-[769px]:w-[80%]">
-                    <p className="text-sm min-[769px]:text-lg text-main-500 mb-md min-[769px]:mb-xl">
-                        Log in or register to save your own templates, organize your favorites, and access personalized features!
-                    </p>
-                    <div className="flex flex-wrap min-[769px]:flex-nowrap justify-center w-full min-[769px]:w-auto gap-md mb-md min-[769px]:mb-xl">
-                        <Button
-                            onClick={() => { setShowLoginForm(!showLoginForm); setShowRegisterForm(false); setInlineAuthError(null); }}
-                            variant={showLoginForm ? 'primary' : 'secondary'}
-                            className="flex-1 min-w-0 px-xs min-[769px]:px-md min-[769px]:w-[150px]"
-                        >
-                            Login
+        <div className="mx-auto w-full max-w-[1400px]">
+            <header className="mb-md flex flex-wrap items-center justify-between gap-md">
+                <h1 className="m-0 text-h3 font-semibold text-main-800">Templates</h1>
+                <div className="flex flex-wrap items-center gap-sm">
+                    <Link to="/" className="inline-flex h-10 items-center gap-xs rounded-sm bg-main-600 px-md text-sm font-medium text-main-100 hover:no-underline">
+                        <Plus aria-hidden="true" size={17} /> New worksheet
+                    </Link>
+                    {isLoggedIn ? <>
+                        <span className="text-sm text-main-600">{user?.username}</span>
+                        <Button variant="ghost" onClick={() => logout()} aria-label="Sign out" title="Sign out" className="h-10 w-10 p-0! text-main-600!">
+                            <LogOut aria-hidden="true" size={18} />
                         </Button>
-                        <Button
-                            onClick={() => { setShowRegisterForm(!showRegisterForm); setShowLoginForm(false); setInlineAuthError(null); }}
-                            variant={showRegisterForm ? 'primary' : 'secondary'}
-                            className="flex-1 min-w-0 px-xs min-[769px]:px-md min-[769px]:w-[150px]"
-                        >
-                            Register
-                        </Button>
-                    </div>
-
-                    {inlineAuthError && <p className="text-main-600 text-sm mt-xs mb-md font-medium">{inlineAuthError}</p>}
-
-                    {(showLoginForm || showRegisterForm) && (
-                        <div className="bg-main-100 rounded-lg p-xl shadow-sm border-2 border-dashed border-main-300 w-full max-w-[448px] mt-md">
-                            <form
-                                onSubmit={showLoginForm ? handleLoginSubmit : handleRegisterSubmit}
-                                className="flex flex-col gap-md w-full"
-                            >
-                                <Input label="Username" value={showLoginForm ? loginUsername : registerUsername} onChange={(e) => showLoginForm ? setLoginUsername(e.target.value) : setRegisterUsername(e.target.value)} required />
-                                {!showLoginForm && <Input label="Email" type="email" value={registerEmail} onChange={(e) => setRegisterEmail(e.target.value)} required />}
-                                <Input label="Password" type="password" value={showLoginForm ? loginPassword : registerPassword} onChange={(e) => showLoginForm ? setLoginPassword(e.target.value) : setRegisterPassword(e.target.value)} required />
-                                {!showLoginForm && <Input label="Confirm Password" type="password" value={registerConfirmPassword} onChange={(e) => setRegisterConfirmPassword(e.target.value)} required />}
-                                <Button type="submit" isLoading={authLoading} className="mt-xs">
-                                    {showLoginForm ? 'Login' : 'Register'}
-                                </Button>
-                            </form>
-                        </div>
-                    )}
+                    </> : <Button variant="ghost" disabled={authLoading} onClick={() => { setSignInTarget('my'); setShowAuth(true); }} className="h-10 text-sm text-main-600!">
+                        <LogIn aria-hidden="true" size={17} /> Sign in
+                    </Button>}
                 </div>
-            ) : (
-                <div className="flex flex-wrap justify-center gap-md mb-lg">
-                    {['public', 'my', 'saved'].map((tab) => (
-                        <Button
-                            key={tab}
-                            onClick={() => { setActiveTab(tab); setCurrentPage(0); }}
-                            variant={activeTab === tab ? 'primary' : 'secondary'}
-                        >
-                            {tab.charAt(0).toUpperCase() + tab.slice(1)} Templates
-                        </Button>
-                    ))}
-                        <Link to="/">
-                            <Button variant="secondary">
-                                Create New Template
-                            </Button>
-                        </Link>
-                    <Button onClick={() => logout()} variant="secondary">Logout</Button>
-                </div>
-            )}
-
-            <section className="bg-main-100 rounded-md p-sm min-[769px]:p-lg shadow-sm w-full min-[769px]:w-[80%]">
-                <h2 className="text-h2 text-main-800 my-md min-[769px]:my-lg capitalize">
-                    {activeTab} Templates
-                </h2>
-
-                <div className="flex flex-col items-center text-center gap-lg bg-main-100 p-xs min-[769px]:p-lg rounded-md border border-dashed border-main-300 w-full">
-                    <Input
-                        label="Search"
-                        value={searchQuery}
-                        onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(0); }}
-                        placeholder="Search by name or description..."
-                        labelPosition="top"
-                    />
-
-                    <div className="flex flex-wrap justify-center items-center gap-lg w-full">
-                        <div className="flex flex-col items-center gap-sm w-full min-[769px]:w-auto min-w-0">
-                            <h3 className="text-base font-semibold text-main-600">Sort By:</h3>
-                            <div className="flex flex-wrap min-[769px]:flex-nowrap justify-center items-center gap-sm w-full min-[769px]:w-auto">
-                                <select
-                                    className="border border-main-300 rounded-sm bg-main-200 p-xs min-[769px]:p-sm text-main-500 cursor-pointer max-w-full min-w-0"
-                                    value={sortBy}
-                                    onChange={(e) => { setSortBy(e.target.value); setCurrentPage(0); }}
-                                >
-                                    <option value="created_at">Date Created</option>
-                                    <option value="likes_count">Likes</option>
-                                </select>
-                                <Button onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')} variant="order">
-                                    {sortOrder === 'asc' ? <ArrowUp aria-hidden="true" size={20} /> : <ArrowDown aria-hidden="true" size={20} />}
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col gap-sm w-[80%]">
-                            <h3 className="text-base font-semibold text-main-600">Filter by Tags:</h3>
-                            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,150px),1fr))] gap-xs text-right">
-                                {PREDEFINED_TAGS.map(tag => (
-                                    <Checkbox
-                                        key={tag}
-                                        label={tag}
-                                        checked={selectedTags.includes(tag)}
-                                        onChange={(e) => {
-                                            const isChecked = e.target.checked;
-                                            setSelectedTags(prev => isChecked ? [...prev, tag] : prev.filter(t => t !== tag));
-                                            setCurrentPage(0);
-                                        }}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {templatesError && <p role="alert">{templatesError}</p>}
+            </header>
+            <div className="mb-md flex w-full max-w-[28rem] overflow-hidden rounded-sm border border-main-300" role="group" aria-label="Template collection">
+                {[['public', 'Community'], ['my', 'Mine'], ['saved', 'Saved']].map(([value, label]) => <button key={value} type="button"
+                    aria-pressed={library.filters.tab === value} onClick={() => chooseView(value)}
+                    className={`min-w-0 flex-1 px-sm py-xs text-sm font-medium focus-visible:outline-2 focus-visible:outline-main-600 ${
+                        library.filters.tab === value ? 'bg-main-600 text-main-100' : 'bg-main-100 text-main-600 hover:bg-main-200'}`}>
+                    {label}
+                </button>)}
+            </div>
+            <TemplateToolbar search={library.search} onSearchChange={library.setSearch} filters={library.filters} onFiltersChange={library.setFilters} />
+            <section aria-label="Template results" className="py-md" aria-busy={library.isLoading}>
+                {library.error ? <div role="alert" className="flex flex-wrap items-center justify-between gap-md py-lg text-sm text-main-700">
+                    <p className="m-0">{library.error}</p>
+                    <Button variant="secondary" onClick={library.refresh}><RotateCw aria-hidden="true" size={16} /> Try again</Button>
+                </div> : <>
+                {!library.isLoading && library.templates.length > 0 && <p role="status" className="m-0 mb-sm text-sm text-main-500">
+                    {library.templates.length} {library.templates.length === 1 ? 'template' : 'templates'} on this page
+                </p>}
                 <TemplateListGrid
-                    templates={publicTemplates}
-                    isLoading={isLoadingTemplates}
-                    emptyMessage="No templates found."
+                    templates={library.templates}
+                    isLoading={library.isLoading}
+                    emptyMessage={hasFilters ? 'No templates match your search.' : library.filters.tab === 'saved' ? 'No saved templates yet.'
+                        : library.filters.tab === 'my' ? 'No templates of your own yet.' : 'No community templates yet.'}
                     authContext={{ user, isLoggedIn }}
                     onUse={handleUseTemplate}
-                    onEdit={handleEditTemplate}
-                    onDelete={handleDeleteTemplate}
-                    onLike={handleLikeTemplate}
-                    onFavorite={handleFavoriteTemplate}
-                    activeTab={activeTab}
+                    onEdit={templateId => navigate(`/?templateId=${templateId}`)}
+                    onDelete={templateId => { setDeleteError(null); setDeleteTarget(library.templates.find(template => template.id === templateId)); }}
+                    onLike={templateId => runAction('like', templateId)}
+                    onFavorite={templateId => runAction('favorite', templateId)}
+                    activeTab={library.filters.tab}
                 />
-
-                {activeTab !== 'my' && <div className="flex justify-center gap-md mt-0 mb-xxl">
-                    <Button onClick={() => setCurrentPage(prev => prev - 1)} disabled={currentPage === 0}>Previous</Button>
-                    <Button onClick={() => setCurrentPage(prev => prev + 1)} disabled={publicTemplates.length < templatesPerPage}>Next</Button>
+                {!library.isLoading && !library.templates.length && hasFilters && <div className="text-center">
+                    <Button variant="ghost" onClick={() => { library.setSearch(''); library.setFilters({ search: '', tags: [] }); }}>Clear search and filters</Button>
                 </div>}
+                {(library.templates.length > 0 || library.filters.page > 0) && <nav aria-label="Template pages" className="mt-lg flex items-center justify-center gap-md">
+                    <Button variant="ghost" className="text-main-600!" onClick={() => library.setPage(page => page - 1)} disabled={library.filters.page === 0 || library.isLoading}>
+                        <ChevronLeft aria-hidden="true" size={16} /> Previous
+                    </Button>
+                    <span className="text-sm tabular-nums text-main-600">Page {library.filters.page + 1}</span>
+                    <Button variant="ghost" className="text-main-600!" onClick={() => library.setPage(page => page + 1)} disabled={!library.hasNext || library.isLoading}>
+                        Next <ChevronRight aria-hidden="true" size={16} />
+                    </Button>
+                </nav>}
+                </>}
             </section>
+            {showAuth && <TemplateAuthDialog onClose={() => setShowAuth(false)} onSignedIn={() => {
+                library.setFilters({ tab: signInTarget });
+                setShowAuth(false);
+            }} />}
+            {deleteTarget && <SettingsModal title="Delete template?" onClose={() => { if (!deleting) setDeleteTarget(null); }} onSubmit={confirmDelete}
+                actions={<Button type="submit" variant="danger" isLoading={deleting}><Trash2 aria-hidden="true" size={17} /> Delete template</Button>}>
+                <p className="m-0 break-words text-sm text-main-700">Delete "{deleteTarget.name}"? This cannot be undone.</p>
+                {deleteError && <p role="alert" className="m-0 text-sm text-main-700">{deleteError}</p>}
+            </SettingsModal>}
         </div>
     );
 }

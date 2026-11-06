@@ -4,11 +4,13 @@ import re
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 os.environ["DATABASE_URL"] = "postgresql+asyncpg://test:test@localhost/test"
 os.environ["SECRET_KEY"] = "test-only-secret-key"
 
 from pydantic import ValidationError
+from reportlab.platypus import Paragraph
 
 from schemas import TopicModifiers, TopicSelection, WorksheetHeader, WorksheetRequest, WorksheetSection
 from pdf_generator.main import create_pdf_worksheet
@@ -17,13 +19,23 @@ from problem_generator.worksheet import generate_section_problems, generate_topi
 
 
 class WorksheetSchemaTests(unittest.TestCase):
-    def test_accepts_custom_topic_display_metadata(self):
+    def test_accepts_custom_topic_names_and_optional_instructions(self):
         request = WorksheetRequest.model_validate({"sections": [{"mode": "single", "topics": [{
-            "topic_id": "addition", "topic_name": "Warm-up", "description": "Custom description",
+            "topic_id": "addition", "topic_name": "Warm-up", "instructions": "Show your work.",
         }]}]})
         topic = request.sections[0].topics[0]
         self.assertEqual(topic.topic_name, "Warm-up")
-        self.assertEqual(topic.description, "Custom description")
+        self.assertEqual(topic.instructions, "Show your work.")
+        self.assertEqual(TopicSelection(topic_id="addition").instructions, "")
+
+    def test_instruction_limits_apply_to_headers_sections_and_topics(self):
+        for model, values in (
+            (WorksheetHeader, {"mode": "header", "title": "Practice"}),
+            (WorksheetSection, {"mode": "single", "topics": [{"topic_id": "addition"}]}),
+            (TopicSelection, {"topic_id": "addition"}),
+        ):
+            with self.subTest(model=model.__name__), self.assertRaises(ValidationError):
+                model.model_validate({**values, "instructions": "x" * 501})
 
     def test_preserves_header_order_between_topic_sections(self):
         request = WorksheetRequest.model_validate({
@@ -131,6 +143,24 @@ class ArithmeticGenerationTests(unittest.TestCase):
 
 
 class PdfPaginationTests(unittest.TestCase):
+    def test_renders_header_parent_and_topic_instructions_as_literal_text(self):
+        sections = [
+            {"mode": "header", "title": "Practice", "instructions": "Work independently."},
+            {"mode": "mixed", "instructions": "Complete both operations.", "page_count": 1,
+                "problems_per_page": 1, "topics": [
+                    {"topic_id": "addition", "topic_name": "Sums", "instructions": "Use < and >.\nShow work."},
+                    {"topic_id": "subtraction", "instructions": "Check your answer."},
+                ], "pages": [[{"question": "1 + 1 =", "answer": 2, "num1": 1, "num2": 1, "symbol": "+"}]]},
+        ]
+        with patch("pdf_generator.main.Paragraph", wraps=Paragraph) as paragraphs:
+            pdf = create_pdf_worksheet(sections, "none").getvalue()
+        texts = [call.args[0] for call in paragraphs.call_args_list]
+        self.assertIn("Work independently.", texts)
+        self.assertIn("Complete both operations.", texts)
+        self.assertIn("<b>Sums:</b> Use &lt; and &gt;.<br/>Show work.", texts)
+        self.assertIn("<b>Subtraction:</b> Check your answer.", texts)
+        self.assertEqual(len(re.findall(rb"/Type\s*/Page\b", pdf)), 1)
+
     def test_review_samples_have_expected_page_counts(self):
         with tempfile.TemporaryDirectory() as output_directory:
             samples = generate_samples(output_directory)

@@ -46,6 +46,12 @@ const normalizeModifiers = (source = {}, topicId = 'all') => {
     return modifiers;
 };
 
+const instructionSetting = value => {
+    if (value == null) return '';
+    if (typeof value !== 'string' || value.length > 500) throw new Error('Instructions must be text of at most 500 characters.');
+    return value.trim();
+};
+
 export function normalizeWorksheetSettings(settings) {
     if (!objectValue(settings) || !Array.isArray(settings.sections)) {
         throw new Error('Template must contain an ordered section list.');
@@ -61,7 +67,7 @@ export function normalizeWorksheetSettings(settings) {
         ids.add(id);
         return { id, subject: subject.subject, topicId: topic.id,
             topicName: typeof instance.topicName === 'string' && instance.topicName.trim() ? instance.topicName.trim() : topic.name,
-            description: typeof instance.description === 'string' ? instance.description : topic.description,
+            instructions: instructionSetting(instance.instructions),
             modifiers: topicModifiers,
         };
     };
@@ -74,7 +80,8 @@ export function normalizeWorksheetSettings(settings) {
             if (typeof section.title !== 'string' || !section.title.trim()) {
                 throw new Error('Header entries require a title.');
             }
-            return { id: typeof section.id === 'string' ? section.id : uuidv4(), mode: 'header', title: section.title.trim() };
+            return { id: typeof section.id === 'string' ? section.id : uuidv4(), mode: 'header',
+                title: section.title.trim(), instructions: instructionSetting(section.instructions) };
         }
         if (!Array.isArray(section.topics) || !section.topics.length || !['single', 'mixed'].includes(section.mode)) {
             throw new Error('Template contains an invalid section.');
@@ -87,6 +94,7 @@ export function normalizeWorksheetSettings(settings) {
             topics,
             pageCount: numberSetting(section.pageCount, 1, 1, 50),
             problemsPerPage: numberSetting(section.problemsPerPage, 10, 1, 50),
+            instructions: instructionSetting(section.instructions),
             shareModifiers,
             sharedModifiers: shareModifiers
                 ? normalizeModifiers(section.sharedModifiers || topics[0]?.modifiers, 'all') : null,
@@ -140,7 +148,7 @@ export function buildWorksheetRequest(settings) {
     const sections = [];
     for (const section of request.sections) {
         if (section.mode === 'header') {
-            sections.push({ mode: 'header', title: section.title });
+            sections.push({ mode: 'header', title: section.title, instructions: section.instructions });
             continue;
         }
         const topics = section.topics.map(topic => {
@@ -148,12 +156,13 @@ export function buildWorksheetRequest(settings) {
             if (topic.topicId !== 'subtraction') modifiers.allow_negative_answers = false;
             if (topic.topicId !== 'division') modifiers.division_mode = 'exact';
             return { topic_id: topic.topicId, topic_name: topic.topicName,
-                description: topic.description, modifiers };
+                instructions: topic.instructions, modifiers };
         });
         const blocks = section.mode === 'mixed' ? [topics] : topics.map(topic => [topic]);
         for (const blockTopics of blocks) {
             sections.push({ mode: section.mode === 'mixed' ? 'mixed' : 'single',
-                page_count: section.pageCount, problems_per_page: section.problemsPerPage, topics: blockTopics });
+                page_count: section.pageCount, problems_per_page: section.problemsPerPage,
+                instructions: section.instructions, topics: blockTopics });
         }
     }
     return { answer_key_mode: request.answerKeyMode, sections };

@@ -31,7 +31,7 @@ class TopicModifiers(BaseModel):
 class TopicSelection(BaseModel):
     topic_id: ArithmeticTopic
     topic_name: Optional[str] = Field(None, min_length=1, max_length=100)
-    description: Optional[str] = Field(None, max_length=500)
+    instructions: str = Field("", max_length=500)
     modifiers: TopicModifiers = Field(default_factory=TopicModifiers)
 
     @field_validator("topic_name")
@@ -47,6 +47,7 @@ class TopicSelection(BaseModel):
 
 class WorksheetSection(BaseModel):
     mode: SectionMode
+    instructions: str = Field("", max_length=500)
     topics: list[TopicSelection] = Field(..., min_length=1, max_length=4)
     page_count: int = Field(1, ge=1, le=50)
     problems_per_page: int = Field(10, ge=1, le=50)
@@ -66,6 +67,7 @@ class WorksheetSection(BaseModel):
 class WorksheetHeader(BaseModel):
     mode: Literal["header"]
     title: str = Field(..., min_length=1, max_length=100)
+    instructions: str = Field("", max_length=500)
 
     @field_validator("title")
     @classmethod
